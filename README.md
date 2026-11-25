@@ -25,6 +25,13 @@ npm run score      # rebuild public/music/akiar.synthor (needs ../synthor checke
 npm run check      # biome lint + format check
 ```
 
+## Deploy
+
+`.github/workflows/pages.yml` builds, tests and publishes to GitHub Pages on
+every push to `main` or the working branch (and by hand from the Actions
+tab): `https://robcvdv.github.io/akiar-experience/`. One-time setup:
+Settings → Pages → Source: **GitHub Actions**.
+
 ## Layout
 
 | Path | What it does |
