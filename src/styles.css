@@ -1,0 +1,89 @@
+:root {
+  --sky: #020309;
+  --faint: rgba(190, 200, 255, 0.28);
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--sky);
+}
+
+.experience {
+  position: fixed;
+  inset: 0;
+  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+}
+
+.sky {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+  cursor: crosshair;
+}
+
+.hint {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 12vh;
+  margin: 0;
+  text-align: center;
+  color: var(--faint);
+  font-style: italic;
+  letter-spacing: 0.3em;
+  font-size: 0.85rem;
+  opacity: 0;
+  transition: opacity 4s ease;
+  pointer-events: none;
+  user-select: none;
+}
+
+.hint.show {
+  opacity: 1;
+  animation: breathe 6s ease-in-out 4s infinite;
+}
+
+@keyframes breathe {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.mute {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--faint);
+  font-size: 18px;
+  cursor: pointer;
+  opacity: 0.5;
+  transition: opacity 0.4s;
+}
+
+.mute:hover,
+.mute:focus-visible {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hint.show {
+    animation: none;
+  }
+}

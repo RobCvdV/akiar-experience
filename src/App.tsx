@@ -1,7 +1,5 @@
-import { LineCanvas } from './components/LineCanvas';
+import { Experience } from './Experience';
 
-function App() {
-  return <LineCanvas />;
+export function App() {
+  return <Experience />;
 }
-
-export default App;

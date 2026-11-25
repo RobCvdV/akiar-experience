@@ -1,92 +1,45 @@
 # Akiar Experience
 
-Interactive audiovisual experience built with React, TypeScript, Elementary Audio, and Framer Motion.
+A night sky that becomes music when you touch it. At first there is almost
+nothing: a few stars breathing in the dark, a drone with far-away bells. A
+star you come near lights up and sings a tone of the harmony; a click plays a
+short arpeggio that fades; scrolling or swiping turns the sky about a random
+axis. The more you play, the further the music grows: a heartbeat, tuned
+ticks, swung brushes and a walking bass, a glass arpeggio, a dreamy lead — and
+the sky follows, stars swaying on the beat, gas clouds and waves of colour in
+the harmony's hues. Leave it alone and it settles back into the dark.
 
-## Tech Stack
+The music is a [synthor](https://github.com/RobCvdV/synthor) song played by
+synthor's headless player and conducted by its `GameConductor`, like Zwap's
+music. See [`docs/MUSIC.md`](docs/MUSIC.md) for the score and how the page
+conducts it.
 
-- **React 19** + **TypeScript** (strict mode)
-- **Vite** - Fast dev server and build tool
-- **Biome** - All-in-one linting and formatting (20x faster than ESLint + Prettier)
-- **Framer Motion** - SVG animations with mouse tracking
-- **Elementary Audio** - Procedural audio synthesis
-
-## Features
-
-### Visual
-- SVG-based animated line forms with neon glow effects
-- Mouse position, velocity, and proximity tracking
-- Reactive animations based on mouse movement
-- Customizable glow filters and effects
-
-### Audio
-- Web Audio API integration via Elementary Audio
-- Procedural sound synthesis (sine oscillators, filtered noise, envelopes)
-- Interactive audio triggers (hover, click)
-- Pulsing tones and ambient soundscapes
-
-## Project Structure
-
-```
-src/
-├── components/       # React components
-│   └── LineCanvas.tsx   # Main interactive canvas
-├── audio/            # Elementary audio setup
-│   ├── audioContext.ts  # Web audio initialization
-│   └── synths.ts        # Audio synthesis functions
-├── hooks/            # Custom React hooks
-│   ├── useAudio.ts         # Audio control hook
-│   └── useMouseTracking.ts # Mouse tracking hook
-├── types/            # TypeScript type definitions
-├── App.tsx           # Root component
-└── main.tsx          # Entry point
-```
-
-## Scripts
+## Commands
 
 ```bash
-npm run dev       # Start dev server (http://localhost:5173)
-npm run build     # Production build
-npm run preview   # Preview production build
-npm run lint      # Run Biome linter
-npm run format    # Format code with Biome
-npm run check     # Lint + format check
+npm run dev        # dev server (http://localhost:5173); window.__music in the console
+npm test           # vitest: score reading, engagement, phrases, sky geometry
+npm run typecheck  # tsc -b
+npm run build      # typecheck + production build into dist/
+npm run score      # rebuild public/music/akiar.synthor (needs ../synthor checked out)
+npm run check      # biome lint + format check
 ```
 
-## Getting Started
+## Layout
 
-1. **Install dependencies**
-   ```bash
-   npm install
-   ```
+| Path | What it does |
+|---|---|
+| `src/Experience.tsx` | The canvas, input (pointer, touch, wheel, keys) and the frame loop |
+| `src/music/Music.ts` | Loads the score, starts it on the first gesture, conducts it, tells each frame what is heard |
+| `src/music/engagement.ts` | Pure: gestures → the conductor's progress (0..1), click streaks, slow fading |
+| `src/music/score.ts` | Pure: a cue's row → pattern row, the notes struck there, the harmony sounding |
+| `src/music/phrases.ts` | Pure: a star's tone and a click's arpeggio in the harmony of the moment |
+| `src/visuals/space.ts` | Pure: stars, quaternion rotation, projection, pitch-class colours |
+| `src/visuals/Sky.ts` | Draws the gas, waves, stars and ripples from each frame's state |
+| `scripts/score/` | Writes the synthor score: instruments, harmony, patterns, game settings |
+| `vendor/synthor-player/` | The synthor player build (`SYNTHOR_COMMIT` names its synthor commit) |
 
-2. **Start dev server**
-   ```bash
-   npm run dev
-   ```
-
-3. **Open browser**
-   - Navigate to `http://localhost:5173`
-   - **Hover** over the cyan line to trigger a short tone
-   - **Click** the line to toggle a pulsing ambient tone
-   - Move your mouse to see speed-reactive visualizations
-
-## Development
-
-- Code is automatically formatted on save (if using Biome extension)
-- TypeScript strict mode is enabled
-- All code follows Biome's recommended rules
-- Import organization is enforced
-
-## Next Steps
-
-Expand on this foundation:
-- Add more complex line shapes (bezier curves, polylines)
-- Create scriptable animation sequences
-- Build procedural music patterns
-- Add randomized variations
-- Implement proximity-based sound modulation
-- Create multiple interactive scenes
-
-## License
-
-MIT
+Interaction: hover or touch near a star (a tone), click or tap (an arpeggio),
+scroll, swipe or arrow keys (turn the sky), space or enter (an arpeggio
+somewhere). The button bottom right mutes. Reduced-motion preferences calm the
+movement down.
