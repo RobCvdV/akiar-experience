@@ -2623,7 +2623,8 @@ var vi = [
 				max: 4,
 				default: 0,
 				step: 1,
-				enumLabels: [...vi]
+				enumLabels: [...vi],
+				structural: !0
 			},
 			{
 				key: "detune",
@@ -2631,7 +2632,8 @@ var vi = [
 				min: -24,
 				max: 24,
 				default: 0,
-				step: 1
+				step: 1,
+				structural: !0
 			},
 			{
 				key: "finetune",
@@ -2639,7 +2641,8 @@ var vi = [
 				min: -100,
 				max: 100,
 				default: 0,
-				step: 1
+				step: 1,
+				structural: !0
 			},
 			{
 				key: "pulseWidth",
@@ -2681,7 +2684,8 @@ var vi = [
 				max: 1,
 				default: 0,
 				step: 1,
-				enumLabels: ["ratio", "fixed"]
+				enumLabels: ["ratio", "fixed"],
+				structural: !0
 			},
 			{
 				key: "ratio",
@@ -2706,7 +2710,8 @@ var vi = [
 				max: 4,
 				default: 0,
 				step: 1,
-				enumLabels: [...yi]
+				enumLabels: [...yi],
+				structural: !0
 			},
 			{
 				key: "pulseWidth",
@@ -3616,7 +3621,8 @@ var vi = [
 				min: -4,
 				max: 4,
 				default: 0,
-				step: 1
+				step: 1,
+				structural: !0
 			},
 			{
 				key: "semi",
@@ -3624,7 +3630,8 @@ var vi = [
 				min: -24,
 				max: 24,
 				default: 0,
-				step: 1
+				step: 1,
+				structural: !0
 			},
 			{
 				key: "finetune",
@@ -3632,7 +3639,8 @@ var vi = [
 				min: -100,
 				max: 100,
 				default: 0,
-				step: 1
+				step: 1,
+				structural: !0
 			},
 			{
 				key: "fmDepth",
@@ -3872,7 +3880,7 @@ function Ui(e, t, n, r = e.id, i = {}, a = 1, o = {}, s, c, l, u = 8) {
 		let i = e.modules[t];
 		if (!i) return B;
 		f.add(t);
-		let a = y(i);
+		let a = x(i);
 		if (f.delete(t), d.set(t, a), n && n !== "outL") {
 			let e = d.get(`${t}:${n}`);
 			if (e !== void 0) return e;
@@ -3883,7 +3891,26 @@ function Ui(e, t, n, r = e.id, i = {}, a = 1, o = {}, s, c, l, u = 8) {
 		let n = g(t.id, "fm");
 		return n === null ? e : I.mul(e, I.add(I.const({ value: 1 }), I.mul(n, m(`${t.id}:fmDepth`, t.params.fmDepth ?? 1))));
 	}
-	function y(e) {
+	function y(e, t, n) {
+		switch (e) {
+			case 0: return I.blepsaw(t);
+			case 2: return I.dcblock(I.bleptriangle(t));
+			case 3: return I.cycle(t);
+			case 1: return I.blepsquare(t);
+			default: return I.dcblock(I.sub(I.mul(I.le(I.phasor(t), n), I.const({ value: 2 })), I.const({ value: 1 })));
+		}
+	}
+	function b(e, t, n, r) {
+		if (e === 0) return I.sin(I.add(I.mul(t, I.const({ value: 2 * Math.PI })), n));
+		let i = I.add(t, I.mul(n, I.const({ value: 1 / (2 * Math.PI) }))), a = I.sub(i, I.floor(i)), o = I.const({ value: 1 }), s = I.const({ value: 2 });
+		switch (e) {
+			case 1: return I.sub(I.mul(a, s), o);
+			case 2: return I.sub(I.mul(I.le(a, I.const({ value: .5 })), s), o);
+			case 3: return I.sub(o, I.mul(s, I.abs(I.sub(I.mul(a, s), o))));
+			default: return I.sub(I.mul(I.le(a, r()), s), o);
+		}
+	}
+	function x(e) {
 		let c = e.params, f = (t) => `${e.id}:${t}`;
 		switch (e.type) {
 			case "note": return t;
@@ -3900,12 +3927,12 @@ function Ui(e, t, n, r = e.id, i = {}, a = 1, o = {}, s, c, l, u = 8) {
 				return l?.register(e, p(f("val"))), n;
 			}
 			case "osc": {
-				let t = g(e.id, "freq") ?? 440, n = m(f("detune"), c.detune ?? 0), r = m(f("finetune"), c.finetune ?? 0), i = I.const({ value: Math.LN2 }), a = I.add(I.div(n, 12), I.div(r, 1200)), o = I.exp(I.mul(i, a)), s = I.max(I.const({ value: 0 }), v(I.mul(t, o), e)), l = m(f("pulseWidth"), c.pulseWidth ?? .5), u = m(f("gain"), c.gain ?? 1), d = m(f("waveform"), c.waveform ?? 0), p = I.blepsaw(s), h = I.bleptriangle(s), _ = I.cycle(s), y = I.phasor(s), b = I.sub(I.mul(I.le(y, l), I.const({ value: 2 })), I.const({ value: 1 })), x = I.select(I.le(d, I.const({ value: .5 })), p, I.select(I.le(d, I.const({ value: 1.5 })), b, I.select(I.le(d, I.const({ value: 2.5 })), h, I.select(I.le(d, I.const({ value: 3.5 })), _, b))));
-				return I.mul(I.dcblock(x), u);
+				let t = g(e.id, "freq") ?? 440, n = 2 ** ((c.detune ?? 0) / 12 + (c.finetune ?? 0) / 1200), r = typeof t == "number" ? I.const({ value: t * n }) : n === 1 ? t : I.mul(t, I.const({ value: n })), i = I.max(I.const({ value: 0 }), v(r, e)), a = m(f("gain"), c.gain ?? 1);
+				return I.mul(y(Math.round(c.waveform ?? 0), i, m(f("pulseWidth"), c.pulseWidth ?? .5)), a);
 			}
 			case "dxop": {
-				let n = g(e.id, "freq") ?? t, i = g(e.id, "mod") ?? B, a = m(f("freqMode"), c.freqMode ?? 0), o = m(f("ratio"), c.ratio ?? 1), s = m(f("fixedHz"), c.fixedHz ?? 440), l = m(f("feedback"), c.feedback ?? 0), u = m(f("level"), c.level ?? 1), d = I.select(I.le(a, I.const({ value: .5 })), I.mul(n, o), s), p = I.mul(I.phasor(d), I.const({ value: 2 * Math.PI })), h = `${r}:${e.id}:fb`, _ = I.add(p, i, I.mul(l, I.tapIn({ name: h }))), v = m(f("waveform"), c.waveform ?? 0), y = I.div(_, I.const({ value: 2 * Math.PI })), b = I.const({ value: 1 }), x = I.const({ value: 2 }), S = I.sin(_), C = I.sub(I.mul(y, x), b), w = I.sub(I.mul(I.le(y, I.const({ value: .5 })), x), b), T = I.sub(b, I.mul(x, I.abs(I.sub(I.mul(y, x), b)))), E = m(f("pulseWidth"), c.pulseWidth ?? .5), D = I.sub(I.mul(I.le(y, E), x), b), O = I.select(I.le(v, I.const({ value: .5 })), S, I.select(I.le(v, I.const({ value: 1.5 })), C, I.select(I.le(v, I.const({ value: 2.5 })), w, I.select(I.le(v, I.const({ value: 3.5 })), T, D))));
-				return I.mul(I.tapOut({ name: h }, O), u);
+				let n = g(e.id, "freq") ?? t, i = g(e.id, "mod"), a = m(f("feedback"), c.feedback ?? 0), o = m(f("level"), c.level ?? 1), s = Math.round(c.freqMode ?? 0) === 1 ? m(f("fixedHz"), c.fixedHz ?? 440) : I.mul(n, m(f("ratio"), c.ratio ?? 1)), l = I.phasor(s), u = `${r}:${e.id}:fb`, d = I.mul(a, I.tapIn({ name: u })), p = i === null ? d : I.add(i, d), h = b(Math.round(c.waveform ?? 0), l, p, () => m(f("pulseWidth"), c.pulseWidth ?? .5));
+				return I.mul(I.tapOut({ name: u }, h), o);
 			}
 			case "noise": {
 				let t = m(f("mode"), c.mode ?? 0), n = m(f("level"), c.level ?? 1), i = I.noise({ key: `${r}:${e.id}:noise` }), a = I.pinknoise({ key: `${r}:${e.id}:pink` }), o = I.select(I.le(t, I.const({ value: .5 })), i, a);
@@ -4079,7 +4106,7 @@ function Ui(e, t, n, r = e.id, i = {}, a = 1, o = {}, s, c, l, u = 8) {
 			case "wave": {
 				let t = g(e.id, "freq"), n = e.sampleId ? i[e.sampleId] : void 0;
 				if (!n?.hash || !Ai(n)) return B;
-				let a = m(f("gain"), c.gain ?? 1), o = I.add(m(f("octave"), c.octave ?? 0), I.div(m(f("semi"), c.semi ?? 0), 12), I.div(m(f("finetune"), c.finetune ?? 0), 1200)), s = I.exp(I.mul(I.const({ value: Math.LN2 }), o)), l = v(I.mul(t ?? 440, s), e), u = g(e.id, "sync"), p = g(e.id, "pm"), h = u === null ? I.phasor(l) : I.syncphasor(l, u), _ = m(f("phase"), c.phase ?? 0), y = p === null ? I.add(h, _) : I.add(h, _, I.mul(p, m(f("pmDepth"), c.pmDepth ?? 1))), b = I.sub(y, I.floor(y)), x = ji(n, c.cycle ?? 0), S = Mi(n.frames, x), C = Math.max(1, n.frames - 1), w = (t, i) => I.mc.table({
+				let a = m(f("gain"), c.gain ?? 1), o = 2 ** ((c.octave ?? 0) + (c.semi ?? 0) / 12 + (c.finetune ?? 0) / 1200), s = t === null ? I.const({ value: 440 * o }) : o === 1 ? t : I.mul(t, I.const({ value: o })), l = v(typeof s == "number" ? I.const({ value: s }) : s, e), u = g(e.id, "sync"), p = g(e.id, "pm"), h = u === null ? I.phasor(l) : I.syncphasor(l, u), _ = m(f("phase"), c.phase ?? 0), y = p === null ? I.add(h, _) : I.add(h, _, I.mul(p, m(f("pmDepth"), c.pmDepth ?? 1))), b = I.sub(y, I.floor(y)), x = ji(n, c.cycle ?? 0), S = Mi(n.frames, x), C = Math.max(1, n.frames - 1), w = (t, i) => I.mc.table({
 					key: `${r}:${e.id}:${i}:${n.hash}`,
 					path: n.hash,
 					channels: n.channels
@@ -4095,10 +4122,10 @@ function Ui(e, t, n, r = e.id, i = {}, a = 1, o = {}, s, c, l, u = 8) {
 			case "output": return B;
 		}
 	}
-	let b = e.modules[e.outputId], x = b ? m(`${b.id}:gain`, b.params.gain ?? 1) : I.const({ value: 1 }), S = b ? g(e.outputId, "inL") ?? B : B, C = b ? g(e.outputId, "inR") ?? S : B, w = (e) => typeof e == "number" ? I.const({ value: e }) : e;
+	let S = e.modules[e.outputId], C = S ? m(`${S.id}:gain`, S.params.gain ?? 1) : I.const({ value: 1 }), w = S ? g(e.outputId, "inL") ?? B : B, T = S ? g(e.outputId, "inR") ?? w : B, E = (e) => typeof e == "number" ? I.const({ value: e }) : e;
 	return {
-		left: I.mul(w(S), x),
-		right: I.mul(w(C), x)
+		left: I.mul(E(w), C),
+		right: I.mul(E(T), C)
 	};
 }
 //#endregion
@@ -4711,7 +4738,7 @@ function wa(e, t, n, r) {
 	};
 }
 //#endregion
-//#region node_modules/fflate/esm/browser.js
+//#region ../../../home/user/synthor/node_modules/fflate/esm/browser.js
 var H = Uint8Array, Ta = Uint16Array, Ea = Int32Array, Da = new H([
 	0,
 	0,

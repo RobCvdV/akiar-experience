@@ -93,6 +93,9 @@ synthor's offline renderer (relative numbers; the Zwap score is ≈ 98 %):
 | Whole score | 123 % | 62 % |
 | Nebula (4 pad voices) | 49 % | 10 % |
 
+- The player is built from synthor's oscillator work (`4d775af`, branch
+  `claude/hopeful-brahmagupta-qha6z6`, not yet on main): the score costs
+  25 % less on it (Zwap's 50 %). Rebuild from main once it is merged.
 - Modules cost about the same each, so the count matters, times the voices.
 - **An `osc` saw, square or pulse costs ~4× a sine or triangle** once the
   sequencer drives its frequency (band-limiting per sample). For a saw under
