@@ -239,7 +239,7 @@ const SPECS: Record<InstrumentName, Spec> = {
   // A star under the pointer: a soft glassy tone that blooms.
   Star: {
     voices: 4,
-    level: 0.43,
+    level: 0.25,
     body: (b) => {
       const carrier = b.add('dxop', { ratio: 1 });
       const mod = b.add('dxop', { ratio: 2 });
@@ -250,7 +250,7 @@ const SPECS: Record<InstrumentName, Spec> = {
   // A click's arpeggio: a bright, short pluck that the echo carries away.
   Spark: {
     voices: 6,
-    level: 0.5,
+    level: 0.29,
     body: (b) => {
       const carrier = b.add('dxop', { ratio: 1 });
       const mod = b.add('dxop', { ratio: 4 });

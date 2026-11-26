@@ -78,7 +78,8 @@ const channel = (
 });
 
 const CHANNELS: MixChannel[] = [
-  channel('master', 'Master', 1, [
+  // notes play at their written volumes (see carryVolumes): the master makes up the level
+  channel('master', 'Master', 1.7, [
     effect('chef_master_comp', 'comp', {
       mode: 1,
       threshold: -16,
@@ -119,6 +120,22 @@ const CHANNEL_OF: Record<InstrumentName, string> = {
   Spark: 'chan_space',
 };
 
+/**
+ * The sequencer reads a row's volume as 1 when the cell has none and
+ * multiplies the voice by it unsmoothed: a soft note jumped to full volume on
+ * its hold rows and through its release, a tick on every note. So each note's
+ * volume is written on the rows after it until the next note, and the rows
+ * before a pattern's first note take its last note's (the pattern loops).
+ */
+export function carryVolumes(cells: Cell[]): void {
+  const last = [...cells].reverse().find((c) => c.note !== null);
+  let volume = last?.volume ?? null;
+  for (const cell of cells) {
+    if (cell.note !== null) volume = cell.volume;
+    else if (cell.volume === null) cell.volume = volume;
+  }
+}
+
 function emptyCell(): Cell {
   return { note: null, volume: null, noteOff: false, hold: false, effectLanes: {} };
 }
@@ -149,6 +166,7 @@ export function buildDoc(): Doc {
         cells[n.row] = { ...emptyCell(), note: n.note, volume: Math.round(n.vol * 100) / 100 };
         for (let r = 1; r < n.rows; r++) cells[n.row + r] = { ...emptyCell(), hold: true };
       }
+      carryVolumes(cells);
       const tid = `trk_${slug}_${t}`;
       tracks[tid] = { id: tid, instrumentId: instId(TRACK_INSTRUMENT[t]), cells, effectLanes: [] };
       trackIds.push(tid);

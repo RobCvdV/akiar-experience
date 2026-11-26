@@ -117,6 +117,21 @@ describe('the Akiar score', () => {
     }
   });
 
+  it('never jumps in volume under a sounding note (the sequencer reads an empty volume as 1)', () => {
+    let jumps = 0;
+    for (const track of Object.values(doc.entities.tracks)) {
+      let sounding = false;
+      let previous: number | null = null;
+      for (const cell of track.cells) {
+        const volume = cell.volume ?? 1;
+        if (cell.note !== null) sounding = true;
+        else if (sounding && previous !== null && Math.abs(volume - previous) > 0.01) jumps++;
+        previous = volume;
+      }
+    }
+    expect(jumps).toBe(0);
+  });
+
   it('keeps the stars playable: Star and Spark have empty tracks', () => {
     const names = Object.values(doc.entities.instruments).map((i) => i.name);
     expect(names).toContain('Star');

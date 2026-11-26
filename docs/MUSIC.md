@@ -45,6 +45,19 @@ as long as tracks 5–12 carry the harmony, the instruments `Star` and `Spark`
 exist with tracks, and the game settings' cues name sections or patterns that
 exist (`src/music/score.test.ts` checks the shipped score).
 
+### Volumes: no jumps under a sounding note
+
+Synthor's sequencer reads a row without a volume as **1** and multiplies the
+voice by it unsmoothed. A note at volume 0.4 followed by hold rows jumped to
+full volume one row in, and its release did too: a soft tick on every quiet
+note. The generator writes each note's volume on the rows after it until the
+next note (`carryVolumes` in `scripts/score/build.ts`); the rows before a
+pattern's first note take its last note's. **Editing in synthor, do the same:
+a volume on a note's hold rows and on the empty rows after it.** A test checks
+the shipped score. What remains is the change on a new note's own row, under
+the previous note's tail; only smoothing the volume in synthor's engine
+removes that.
+
 ## How the page conducts it
 
 - **Engagement** (`engagement.ts`) is the conductor's progress: every gesture
