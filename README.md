@@ -46,6 +46,10 @@ Settings → Pages → Source: **GitHub Actions**.
 | `scripts/score/` | Writes the synthor score: instruments, harmony, patterns, game settings |
 | `vendor/synthor-player/` | The synthor player build (`SYNTHOR_COMMIT` names its synthor commit) |
 
+The page opens on a quiet cue, "tik/klik om te luisteren" (tap/click to listen): that tap is what lets
+the browser play audio (iOS only allows it inside a tap), so the audio
+context is made right there and the tap plays the first arpeggio.
+
 Interaction: hover or touch near a star (a tone), click or tap (an arpeggio),
 scroll, swipe or arrow keys (turn the sky), space or enter (an arpeggio
 somewhere). The button bottom right mutes. `?debug` shows the audio settings,

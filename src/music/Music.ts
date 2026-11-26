@@ -57,12 +57,13 @@ const PROGRESS_EVERY_MS = 400;
 const IDLE_NUDGE_MS = 20000;
 
 export class Music {
-  private context: AudioContext;
-  private player: SongPlayer;
+  private context: AudioContext | null = null;
+  private player: SongPlayer | null = null;
   private conductor: GameConductor | null = null;
   private doc: SongFile['doc'] | null = null;
   private game: GameMusic | null = null;
-  private loading: Promise<void>;
+  private bytes: Promise<ArrayBuffer>;
+  private latencyHint: LatencyHint;
   private engagement: Engagement = initialEngagement;
   private lastTick = 0;
   private lastProgressAt = 0;
@@ -73,38 +74,53 @@ export class Music {
   private energy = 0;
   private muted = false;
   started = false;
+  /** Why the music could not start, if it could not */
+  failure: string | null = null;
 
   constructor(latencyHint: LatencyHint = 'interactive', url = SCORE_URL) {
-    // our own context, for its latency hint (larger buffers tick less on busy devices)
-    this.context = new AudioContext({ latencyHint });
-    this.player = new SongPlayer({ audioContext: this.context });
-    this.loading = fetch(url)
+    this.latencyHint = latencyHint;
+    // the score loads at once; the audio waits for the listener's tap
+    this.bytes = fetch(url)
       .then((r) => r.arrayBuffer())
-      .then(async (bytes) => {
+      .then((bytes) => {
         this.doc = unpackSongBundle(bytes).file.doc;
         this.game = this.doc.game ?? null;
-        await this.player.load(bytes);
+        return bytes;
       });
   }
 
-  /** From a user gesture (autoplay policy) */
-  async start(): Promise<void> {
-    if (this.started) return;
+  /**
+   * Call straight from a tap or click handler: iOS only lets audio start
+   * inside one, so the context is made and resumed before anything awaits.
+   */
+  start(): Promise<void> {
+    if (this.started) return Promise.resolve();
     this.started = true;
-    // resume while still in the gesture: iOS allows it only there
-    const resumed = this.context.resume();
-    await this.loading;
-    await resumed;
-    await this.player.start();
+    const context = makeContext(this.latencyHint);
+    this.context = context;
+    void context.resume();
+    unlock(context);
+    return this.begin(context).catch((e: unknown) => {
+      this.failure = e instanceof Error ? e.message : String(e);
+      throw e;
+    });
+  }
+
+  private async begin(context: AudioContext): Promise<void> {
+    const player = new SongPlayer({ audioContext: context });
+    this.player = player;
+    await player.load(await this.bytes);
+    await player.start();
+    if (this.muted) player.setVolume(0);
     if (!this.game) throw new Error('the score has no game settings');
-    this.conductor = new GameConductor(this.player, this.game);
+    this.conductor = new GameConductor(player, this.game);
     this.conductor.setMood('play');
     this.conductor.setProgress(this.level, this.engagement.progress);
   }
 
   setMuted(muted: boolean) {
     this.muted = muted;
-    this.player.setVolume(muted ? 0 : 1);
+    this.player?.setVolume(muted ? 0 : 1);
   }
 
   get isMuted() {
@@ -131,8 +147,10 @@ export class Music {
 
   private play(instrument: string, phrase: PhraseNote[]) {
     if (!this.conductor || this.muted) return;
+    const player = this.player;
+    if (!player) return;
     for (const n of phrase) {
-      this.player.playNote(instrument, n.note, {
+      player.playNote(instrument, n.note, {
         at: 'row',
         delayRows: n.delayRows,
         rows: n.rows,
@@ -211,18 +229,19 @@ export class Music {
     return new Set([...muted, ...[...out, ...cut].flatMap((g) => groups[g] ?? [])]);
   }
 
-  /** For the console: `__music.snapshot()` */
   /** What the browser made of the audio settings */
   get audio() {
     const c = this.context;
+    if (!c) return { state: 'not started', sampleRate: 0, baseLatency: 0, outputLatency: 0 };
     return {
       state: c.state,
       sampleRate: c.sampleRate,
-      baseLatency: c.baseLatency,
+      baseLatency: c.baseLatency ?? 0,
       outputLatency: c.outputLatency ?? 0,
     };
   }
 
+  /** For the console: `__music.snapshot()` */
   snapshot() {
     return {
       engagement: this.engagement,
@@ -233,7 +252,29 @@ export class Music {
 
   dispose() {
     this.conductor?.dispose();
-    this.player.stop();
-    void this.context.close();
+    this.player?.stop();
+    void this.context?.close();
   }
+}
+
+/** An AudioContext with the hint, or without one where the browser refuses it */
+function makeContext(latencyHint: LatencyHint): AudioContext {
+  try {
+    return new AudioContext({ latencyHint });
+  } catch {
+    return new AudioContext();
+  }
+}
+
+/**
+ * iOS: play through the silent switch like a media player, and wake the
+ * output with a moment of silence while still inside the tap.
+ */
+function unlock(context: AudioContext) {
+  const session = (navigator as Navigator & { audioSession?: { type: string } }).audioSession;
+  if (session) session.type = 'playback';
+  const source = context.createBufferSource();
+  source.buffer = context.createBuffer(1, 1, context.sampleRate);
+  source.connect(context.destination);
+  source.start();
 }

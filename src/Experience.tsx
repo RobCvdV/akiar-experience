@@ -19,6 +19,9 @@ export function Experience() {
   const [muted, setMuted] = useState(false);
   const musicRef = useRef<Music | null>(null);
   const debugRef = useRef<HTMLPreElement>(null);
+  /** Set by the effect: the listener's first tap, which starts the audio */
+  const enterRef = useRef<(x: number, y: number) => void>(() => {});
+  const [coarse] = useState(() => window.matchMedia('(pointer: coarse)').matches);
   const [options] = useState(() =>
     audioOptions(window.location.search, window.matchMedia('(pointer: coarse)').matches),
   );
@@ -36,19 +39,28 @@ export function Experience() {
     let harmony: number[] = [];
     let hovered = -1;
     let frame = 0;
-    let touched = false;
+    let entered = false;
+    let touchedSky = false;
     const touches = new Map<number, { x: number; y: number; moved: number }>();
 
     const resize = () =>
       sky.resize(window.innerWidth, window.innerHeight, Math.min(2, window.devicePixelRatio || 1));
     resize();
 
-    const begin = () => {
-      if (touched) return;
-      touched = true;
-      setHint(false);
-      setStarted(true);
+    let hintTimer = 0;
+    // straight from the tap's click handler: iOS allows audio only there
+    enterRef.current = (x, y) => {
+      if (entered) return;
+      entered = true;
       music.start().catch((e) => console.error('music', e));
+      setStarted(true);
+      click(x, y);
+      hintTimer = window.setTimeout(() => !touchedSky && setHint(true), 6000);
+    };
+    const touch = () => {
+      if (touchedSky) return;
+      touchedSky = true;
+      setHint(false);
     };
 
     const near = (x: number, y: number) => {
@@ -61,6 +73,7 @@ export function Experience() {
       }
       sky.light(star, star === hovered ? 0.5 : 0.75);
       if (star !== hovered) music.gesture('hover', now);
+      if (entered) touch();
       hovered = star;
       const last = sung.get(star) ?? Number.NEGATIVE_INFINITY;
       if (now - last > STAR_COOLDOWN_MS && now - lastTone > TONE_GAP_MS) {
@@ -72,7 +85,6 @@ export function Experience() {
     };
 
     const click = (x: number, y: number) => {
-      begin();
       music.gesture('click', performance.now());
       sky.burst(x, y, harmony);
       music.arpeggio(1 - y / window.innerHeight, harmony);
@@ -99,8 +111,8 @@ export function Experience() {
       near(e.clientX, e.clientY);
     };
     const onPointerDown = (e: PointerEvent) => {
+      touch();
       if (e.pointerType === 'touch') {
-        begin();
         touches.set(e.pointerId, { x: e.clientX, y: e.clientY, moved: 0 });
         near(e.clientX, e.clientY);
         return;
@@ -117,6 +129,7 @@ export function Experience() {
       turn(Math.hypot(e.deltaX, e.deltaY) * (e.deltaMode === 1 ? 30 : 1));
     };
     const onKey = (e: KeyboardEvent) => {
+      if (!entered) return; // the entry button takes enter and space itself
       if (e.key === ' ' || e.key === 'Enter') {
         e.preventDefault();
         click(
@@ -129,14 +142,16 @@ export function Experience() {
       }
     };
 
-    canvas.addEventListener('pointermove', onPointerMove);
+    // stars answer the pointer even under the entry cue (silently, until the tap)
+    window.addEventListener('pointermove', onPointerMove);
+    const noMenu = (e: Event) => e.preventDefault();
+    window.addEventListener('contextmenu', noMenu);
     canvas.addEventListener('pointerdown', onPointerDown);
     canvas.addEventListener('pointerup', onPointerUp);
     canvas.addEventListener('pointercancel', onPointerUp);
     canvas.addEventListener('wheel', onWheel, { passive: false });
     window.addEventListener('keydown', onKey);
     window.addEventListener('resize', resize);
-    const hintTimer = window.setTimeout(() => !touched && setHint(true), 3500);
 
     // ?debug: what the device makes of it, twice a second
     let frames = 0;
@@ -151,6 +166,7 @@ export function Experience() {
         `audio ${a.state} ${a.sampleRate} Hz, hint ${options.latencyHint}`,
         `buffer ${(a.baseLatency * 1000).toFixed(1)} ms, output ${(a.outputLatency * 1000).toFixed(1)} ms`,
         `${fps} fps, ${section ?? '-'} ${energy.toFixed(2)}`,
+        ...(music.failure ? [`failed: ${music.failure}`] : []),
       ].join('\n');
       frames = 0;
       readoutAt = now;
@@ -170,7 +186,8 @@ export function Experience() {
     return () => {
       cancelAnimationFrame(frame);
       window.clearTimeout(hintTimer);
-      canvas.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('contextmenu', noMenu);
       canvas.removeEventListener('pointerdown', onPointerDown);
       canvas.removeEventListener('pointerup', onPointerUp);
       canvas.removeEventListener('pointercancel', onPointerUp);
@@ -196,6 +213,24 @@ export function Experience() {
         aria-label="Een sterrenhemel die op je reageert met muziek"
       />
       {options.debug && <pre ref={debugRef} className="debug" />}
+      {!started && (
+        <button
+          type="button"
+          className="enter"
+          // biome-ignore lint/a11y/noAutofocus: the page's only control before it starts
+          autoFocus
+          onClick={(e) => {
+            const keyboard = e.detail === 0;
+            enterRef.current(
+              keyboard ? window.innerWidth / 2 : e.clientX,
+              keyboard ? window.innerHeight / 2 : e.clientY,
+            );
+          }}
+        >
+          <span className="ring" aria-hidden="true" />
+          <span className="label">{coarse ? 'tik' : 'klik'} om te luisteren</span>
+        </button>
+      )}
       <p className={`hint ${hint ? 'show' : ''}`} aria-hidden={!hint}>
         raak de sterren aan
       </p>

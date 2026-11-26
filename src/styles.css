@@ -12,6 +12,11 @@ html,
 body,
 #root {
   margin: 0;
+  /* a long press must not select, magnify or open a menu */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
   height: 100%;
   overflow: hidden;
   background: var(--sky);
@@ -102,4 +107,69 @@ body,
     Menlo,
     monospace;
   pointer-events: none;
+}
+
+/* the entry cue: the whole sky is the button, a breathing ring at its centre */
+.enter {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  width: 100%;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--faint);
+  font: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.enter:focus {
+  outline: none;
+}
+
+.enter .ring {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  border: 1px solid rgba(190, 200, 255, 0.35);
+  box-shadow:
+    0 0 24px rgba(150, 140, 255, 0.25),
+    inset 0 0 14px rgba(150, 140, 255, 0.2);
+  animation: pulse 3.6s ease-in-out infinite;
+}
+
+.enter .label {
+  font-style: italic;
+  letter-spacing: 0.3em;
+  font-size: 0.85rem;
+  opacity: 0;
+  animation: appear 3s ease 1s forwards;
+}
+
+.enter:focus-visible .ring {
+  border-color: rgba(220, 225, 255, 0.8);
+}
+
+@keyframes pulse {
+  50% {
+    transform: scale(1.18);
+    opacity: 0.55;
+  }
+}
+
+@keyframes appear {
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .enter .ring {
+    animation: none;
+  }
 }
