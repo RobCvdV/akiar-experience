@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { audioOptions } from './music/audioOptions';
 import { Music } from './music/Music';
 import { Sky } from './visuals/Sky';
 
@@ -17,11 +18,15 @@ export function Experience() {
   const [hint, setHint] = useState(false);
   const [muted, setMuted] = useState(false);
   const musicRef = useRef<Music | null>(null);
+  const debugRef = useRef<HTMLPreElement>(null);
+  const [options] = useState(() =>
+    audioOptions(window.location.search, window.matchMedia('(pointer: coarse)').matches),
+  );
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const music = new Music();
+    const music = new Music(options.latencyHint);
     musicRef.current = music;
     const sky = new Sky(canvas);
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -133,15 +138,34 @@ export function Experience() {
     window.addEventListener('resize', resize);
     const hintTimer = window.setTimeout(() => !touched && setHint(true), 3500);
 
+    // ?debug: what the device makes of it, twice a second
+    let frames = 0;
+    let readoutAt = 0;
+    const readout = (now: number, energy: number, section: string | null) => {
+      frames++;
+      const el = debugRef.current;
+      if (!el || now - readoutAt < 500) return;
+      const a = music.audio;
+      const fps = Math.round((frames * 1000) / (now - readoutAt));
+      el.textContent = [
+        `audio ${a.state} ${a.sampleRate} Hz, hint ${options.latencyHint}`,
+        `buffer ${(a.baseLatency * 1000).toFixed(1)} ms, output ${(a.outputLatency * 1000).toFixed(1)} ms`,
+        `${fps} fps, ${section ?? '-'} ${energy.toFixed(2)}`,
+      ].join('\n');
+      frames = 0;
+      readoutAt = now;
+    };
+
     const loop = (now: number) => {
       const heard = music.tick(now);
       harmony = heard.harmony;
       sky.draw({ ...heard, now, reducedMotion: reduced.matches });
+      if (options.debug) readout(now, heard.energy, heard.section);
       frame = requestAnimationFrame(loop);
     };
     frame = requestAnimationFrame(loop);
 
-    if (import.meta.env.DEV) Object.assign(window, { __music: music });
+    if (import.meta.env.DEV || options.debug) Object.assign(window, { __music: music });
 
     return () => {
       cancelAnimationFrame(frame);
@@ -155,7 +179,7 @@ export function Experience() {
       window.removeEventListener('resize', resize);
       music.dispose();
     };
-  }, []);
+  }, [options]);
 
   const toggleMute = () => {
     const music = musicRef.current;
@@ -171,6 +195,7 @@ export function Experience() {
         className="sky"
         aria-label="Een sterrenhemel die op je reageert met muziek"
       />
+      {options.debug && <pre ref={debugRef} className="debug" />}
       <p className={`hint ${hint ? 'show' : ''}`} aria-hidden={!hint}>
         raak de sterren aan
       </p>

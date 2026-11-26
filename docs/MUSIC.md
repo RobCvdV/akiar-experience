@@ -69,6 +69,27 @@ the parts the DJ has faded or cut: the kick pulses the stars, brushes, ride and
 bass make the gas breathe, ticks, arp, lead and bells light stars of their
 pitch class.
 
+## CPU: what a phone can carry
+
+Every voice slot and channel effect runs all the time, sounding or not; an
+audio thread that misses its buffers is heard as ticks. Measured with
+synthor's offline renderer (relative numbers; the Zwap score is ≈ 98 %):
+
+| | before | now |
+|---|---|---|
+| Whole score | 123 % | 67 % |
+| Nebula (4 pad voices) | 49 % | 10 % |
+
+- Modules cost about the same each, so the count matters, times the voices.
+- **An `osc` saw, square or pulse costs ~4× a sine or triangle** once the
+  sequencer drives its frequency (band-limiting per sample). For a saw under
+  a lowpass, use a `dxop` with its saw waveform (`waveform: 1`).
+- A reverb is the dearest effect; the drums have none.
+- The page asks for larger audio buffers on touch devices
+  (`latencyHint: 'playback'`). Try others on a device with
+  `?latency=interactive|balanced|playback|<seconds>`; `?debug` shows what the
+  browser chose, the frame rate, the section and the energy.
+
 ## Changing it
 
 - **By ear**: open `akiar.synthor` in synthor and edit it there (its Game

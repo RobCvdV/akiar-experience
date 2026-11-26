@@ -11,6 +11,7 @@ import {
   SongPlayer,
   unpackSongBundle,
 } from 'synthor-player';
+import type { LatencyHint } from './audioOptions';
 import {
   decay,
   type Engagement,
@@ -56,7 +57,8 @@ const PROGRESS_EVERY_MS = 400;
 const IDLE_NUDGE_MS = 20000;
 
 export class Music {
-  private player = new SongPlayer();
+  private context: AudioContext;
+  private player: SongPlayer;
   private conductor: GameConductor | null = null;
   private doc: SongFile['doc'] | null = null;
   private game: GameMusic | null = null;
@@ -72,7 +74,10 @@ export class Music {
   private muted = false;
   started = false;
 
-  constructor(url = SCORE_URL) {
+  constructor(latencyHint: LatencyHint = 'interactive', url = SCORE_URL) {
+    // our own context, for its latency hint (larger buffers tick less on busy devices)
+    this.context = new AudioContext({ latencyHint });
+    this.player = new SongPlayer({ audioContext: this.context });
     this.loading = fetch(url)
       .then((r) => r.arrayBuffer())
       .then(async (bytes) => {
@@ -86,7 +91,10 @@ export class Music {
   async start(): Promise<void> {
     if (this.started) return;
     this.started = true;
+    // resume while still in the gesture: iOS allows it only there
+    const resumed = this.context.resume();
     await this.loading;
+    await resumed;
     await this.player.start();
     if (!this.game) throw new Error('the score has no game settings');
     this.conductor = new GameConductor(this.player, this.game);
@@ -204,6 +212,17 @@ export class Music {
   }
 
   /** For the console: `__music.snapshot()` */
+  /** What the browser made of the audio settings */
+  get audio() {
+    const c = this.context;
+    return {
+      state: c.state,
+      sampleRate: c.sampleRate,
+      baseLatency: c.baseLatency,
+      outputLatency: c.outputLatency ?? 0,
+    };
+  }
+
   snapshot() {
     return {
       engagement: this.engagement,
@@ -215,5 +234,6 @@ export class Music {
   dispose() {
     this.conductor?.dispose();
     this.player.stop();
+    void this.context.close();
   }
 }

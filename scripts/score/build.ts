@@ -89,15 +89,8 @@ const CHANNELS: MixChannel[] = [
       makeup: 2,
     }),
   ]),
-  channel('chan_drums', 'Drums', 1.2, [
-    effect('chef_drums_room', 'reverb', {
-      roomSize: 0.45,
-      feedback: 0.35,
-      damping: 0.6,
-      stereoWidth: 0.8,
-      mix: 0.16,
-    }),
-  ]),
+  // no reverb on the drums: a reverb is the dearest thing in the mix, and phones feel it
+  channel('chan_drums', 'Drums', 1.2, []),
   channel('chan_pads', 'Pads', 1, [
     effect('chef_pads_hall', 'reverb', {
       roomSize: 0.9,

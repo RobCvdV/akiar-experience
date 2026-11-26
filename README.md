@@ -48,5 +48,7 @@ Settings → Pages → Source: **GitHub Actions**.
 
 Interaction: hover or touch near a star (a tone), click or tap (an arpeggio),
 scroll, swipe or arrow keys (turn the sky), space or enter (an arpeggio
-somewhere). The button bottom right mutes. Reduced-motion preferences calm the
+somewhere). The button bottom right mutes. `?debug` shows the audio settings,
+frame rate and section; `?latency=…` tries another buffer size (see
+`docs/MUSIC.md`, CPU). Reduced-motion preferences calm the
 movement down.

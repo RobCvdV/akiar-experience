@@ -11,8 +11,8 @@ import {
 } from '../../../synthor/src/domain/presets/patchBuilder';
 import type { ModularInstrument } from '../../../synthor/src/domain/types';
 
-const SAW = 0;
-const SQUARE = 1;
+/** A DX operator's saw (its waveforms start with sine) */
+const DX_SAW = 1;
 const TRIANGLE = 2;
 const SINE = 3;
 const LOWPASS = 0;
@@ -166,47 +166,33 @@ const SPECS: Record<InstrumentName, Spec> = {
     },
   },
   // The nebula: detuned saws and a soft octave sine, breathing slowly.
+  // Two detuned saws, one per side, each through its own lowpass: wide and
+  // warm. The saws are DX operators: an oscillator's band-limited saw costs
+  // four times as much once the sequencer drives it, too much for phones.
   Nebula: {
     voices: 8,
-    level: 1.05,
+    level: 1.13,
     body: (b) => {
       const amp = env(b, 1.6, 1.4, 0.8, 2.8);
-      const breath = b.add('lfo', { rate: 0.11, amount: 0.5 });
-      const sub = osc(b, { waveform: SINE, detune: -12, gain: 0.3 });
-      const side = (finetune: number) => {
-        const f = b.add('filter', { mode: LOWPASS, cutoff: 700, q: 1.4, modDepth: 0.8 });
-        b.wire(
-          mix(
-            b,
-            osc(b, { waveform: SAW, finetune, gain: 0.45 }),
-            osc(b, { waveform: TRIANGLE, detune: 12, finetune: -finetune, gain: 0.3 }),
-            sub,
-          ),
-          f,
-          'in',
-        );
-        b.wire(breath, f, 'cutoffMod');
+      const side = (cents: number) => {
+        const f = b.add('filter', { mode: LOWPASS, cutoff: 820, q: 1.6 });
+        b.wire(b.add('dxop', { ratio: 2 ** (cents / 1200), waveform: DX_SAW, level: 0.6 }), f, 'in');
         return vca(b, f, amp);
       };
-      const l = side(-9);
-      const r = side(11);
-      b.wire(l, b.output, 'inL');
-      b.wire(r, b.output, 'inR');
+      b.wire(side(-9), b.output, 'inL');
+      b.wire(side(11), b.output, 'inR');
     },
   },
-  // A Rhodes: FM tine and body, a soft bark, a long tail.
   Rhodes: {
     voices: 8,
-    level: 0.55,
+    level: 0.78,
     body: (b) => {
       const carrier = b.add('dxop', { ratio: 1 });
-      const detuned = b.add('dxop', { ratio: 1.003, level: 0.5 });
       const tine = vca(b, b.add('dxop', { ratio: 14 }), env(b, 0.001, 0.06, 0, 0.05), 0.9);
       const body = vca(b, b.add('dxop', { ratio: 1 }), env(b, 0.001, 1.4, 0.15, 0.3), 0.9);
       b.wire(tine, carrier, 'mod');
       b.wire(body, carrier, 'mod');
-      b.wire(body, detuned, 'mod');
-      widen(b, vca(b, mix(b, carrier, detuned), env(b, 0.002, 2, 0.3, 0.6), 0.85), 1.5);
+      widen(b, vca(b, carrier, env(b, 0.002, 2, 0.3, 0.6), 0.85), 1.5);
     },
   },
   // Glass: a bell-pluck for the arpeggio.
@@ -226,17 +212,14 @@ const SPECS: Record<InstrumentName, Spec> = {
   // The dream lead: a sine and a breathy triangle, a late vibrato.
   Dream: {
     voices: 2,
-    level: 0.5,
+    level: 0.55,
     body: (b) => {
       const vib = b.add('lfo', { rate: 5.2, amount: 0.004 });
       const s = osc(b, { waveform: SINE });
       const t = osc(b, { waveform: TRIANGLE, detune: 12, gain: 0.22 });
-      const sq = osc(b, { waveform: SQUARE, gain: 0.06 });
       b.wire(vib, s, 'fm');
       b.wire(vib, t, 'fm');
-      const f = b.add('filter', { mode: LOWPASS, cutoff: 2400, q: 0.9 });
-      b.wire(mix(b, s, t, sq), f, 'in');
-      widen(b, vca(b, f, env(b, 0.07, 0.6, 0.75, 0.9)), 1.2);
+      widen(b, vca(b, mix(b, s, t), env(b, 0.07, 0.6, 0.75, 0.9)), 1.2);
     },
   },
   // Far-away bells in the dark: the soundscape's mysterious tones.
@@ -261,8 +244,7 @@ const SPECS: Record<InstrumentName, Spec> = {
       const carrier = b.add('dxop', { ratio: 1 });
       const mod = b.add('dxop', { ratio: 2 });
       b.wire(vca(b, mod, env(b, 0.08, 0.8, 0.2, 1), 0.7), carrier, 'mod');
-      const air = osc(b, { waveform: SINE, detune: 12, gain: 0.2 });
-      widen(b, vca(b, mix(b, carrier, air), env(b, 0.06, 1.1, 0.35, 1.6)), 1.7);
+      widen(b, vca(b, carrier, env(b, 0.06, 1.1, 0.35, 1.6)), 1.7);
     },
   },
   // A click's arpeggio: a bright, short pluck that the echo carries away.
@@ -273,9 +255,7 @@ const SPECS: Record<InstrumentName, Spec> = {
       const carrier = b.add('dxop', { ratio: 1 });
       const mod = b.add('dxop', { ratio: 4 });
       b.wire(vca(b, mod, env(b, 0.001, 0.18, 0, 0.15), 1.3), carrier, 'mod');
-      const f = b.add('filter', { mode: HIGHPASS, cutoff: 220, q: 0.7 });
-      b.wire(vca(b, carrier, env(b, 0.001, 0.5, 0, 0.45)), f, 'in');
-      widen(b, f, 1.6);
+      widen(b, vca(b, carrier, env(b, 0.001, 0.5, 0, 0.45)), 1.6);
     },
   },
 };
