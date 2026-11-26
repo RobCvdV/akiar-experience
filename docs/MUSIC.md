@@ -77,14 +77,18 @@ synthor's offline renderer (relative numbers; the Zwap score is ≈ 98 %):
 
 | | before | now |
 |---|---|---|
-| Whole score | 123 % | 67 % |
+| Whole score | 123 % | 62 % |
 | Nebula (4 pad voices) | 49 % | 10 % |
 
 - Modules cost about the same each, so the count matters, times the voices.
 - **An `osc` saw, square or pulse costs ~4× a sine or triangle** once the
   sequencer drives its frequency (band-limiting per sample). For a saw under
   a lowpass, use a `dxop` with its saw waveform (`waveform: 1`).
-- A reverb is the dearest effect; the drums have none.
+- A reverb is the dearest effect (≈ 8 %): the song has **one**, on the
+  `Space` sub channel (echo, then hall) that every voice wanting space plays
+  through. Drums and bass stay dry; the master only compresses. No reverb or
+  echo inside an instrument: every voice would pay for it. (`width`'s Haas
+  delay per voice is cheap enough.)
 - The page asks for larger audio buffers on touch devices
   (`latencyHint: 'playback'`). Try others on a device with
   `?latency=interactive|balanced|playback|<seconds>`; `?debug` shows what the

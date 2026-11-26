@@ -89,25 +89,17 @@ const CHANNELS: MixChannel[] = [
       makeup: 2,
     }),
   ]),
-  // no reverb on the drums: a reverb is the dearest thing in the mix, and phones feel it
+  // One reverb for the whole song, on one sub channel: reverbs are the dearest
+  // thing in the mix and phones feel every one. Drums and bass stay dry.
   channel('chan_drums', 'Drums', 1.2, []),
-  channel('chan_pads', 'Pads', 1, [
-    effect('chef_pads_hall', 'reverb', {
-      roomSize: 0.9,
-      feedback: 0.6,
-      damping: 0.55,
-      stereoWidth: 0.9,
-      mix: 0.4,
-    }),
-  ]),
   channel('chan_space', 'Space', 1, [
-    effect('chef_space_echo', 'echoS', { time: 9, feedback: 0.45, mix: 0.3, pingpong: 0.75 }),
+    effect('chef_space_echo', 'echoS', { time: 9, feedback: 0.4, mix: 0.22, pingpong: 0.75 }),
     effect('chef_space_hall', 'reverb', {
-      roomSize: 0.95,
-      feedback: 0.65,
-      damping: 0.45,
+      roomSize: 0.92,
+      feedback: 0.62,
+      damping: 0.5,
       stereoWidth: 1,
-      mix: 0.42,
+      mix: 0.4,
     }),
   ]),
 ];
@@ -118,8 +110,8 @@ const CHANNEL_OF: Record<InstrumentName, string> = {
   Ride: 'chan_drums',
   Tick: 'chan_space',
   Bass: 'master',
-  Nebula: 'chan_pads',
-  Rhodes: 'chan_pads',
+  Nebula: 'chan_space',
+  Rhodes: 'chan_space',
   Glass: 'chan_space',
   Dream: 'chan_space',
   Shimmer: 'chan_space',
