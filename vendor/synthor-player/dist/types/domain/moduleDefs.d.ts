@@ -40,13 +40,16 @@ export interface ModuleDef {
     /** Label of the sample picker, for modules that reference a sample (`Module.sampleId`). */
     samplePicker?: string;
 }
-/** Waveform selector values for the oscillator. */
-export declare const WAVEFORMS: readonly ['saw', 'square', 'triangle', 'sine', 'pulse'];
+/** Waveform selector values for the oscillator. Append only — songs store the
+ *  index. Every name but saw/square/pulse plays from the native band-limited
+ *  wavetable oscillator under the same name (`engine/wavetableShapes.ts`). */
+export declare const WAVEFORMS: readonly ["saw", "square", "triangle", "sine", "pulse", "pulse 25%", "pulse 12%", "half sine", "abs sine", "organ", "trapezoid", "sync saw", "stairs", "soft saw", "hollow", "shark fin", "double saw"];
 /** DX operator waveforms — sine first so old patches (no waveform param → 0) stay sine. */
 export declare const DX_WAVEFORMS: readonly ['sine', 'saw', 'square', 'triangle', 'pulse'];
-/** LFO waveform selector — all shapes, ordered so old sine/triangle patches
- *  keep their index (0=sine, 1=triangle, then the rest). */
-export declare const LFO_WAVEFORMS: readonly ['sine', 'triangle', 'saw', 'square', 'pulse'];
+/** LFO waveform selector — ordered so old sine/triangle patches keep their
+ *  index (0=sine, 1=triangle, then the rest). Pulse is a live-width phasor
+ *  pulse; every other shape is the unfiltered wavetable shape of that name. */
+export declare const LFO_WAVEFORMS: readonly ["sine", "triangle", "saw", "square", "pulse", "pulse 25%", "pulse 12%", "half sine", "abs sine", "organ", "trapezoid", "sync saw", "stairs", "soft saw", "hollow", "shark fin", "double saw"];
 /** Filter mode selector values. */
 export declare const FILTER_MODES: readonly ['lowpass', 'highpass', 'bandpass'];
 /** Mix combine modes. */

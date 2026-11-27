@@ -22,6 +22,7 @@ import {
 } from './engagement';
 import { clickArpeggio, type PhraseNote, starTone } from './phrases';
 import { DEFAULT_HARMONY, harmonyAt, notesAt, type StartedNote } from './score';
+import { easeBpm, targetBpm } from './tempo';
 
 export const SCORE_URL = `${import.meta.env.BASE_URL}music/akiar.synthor`;
 
@@ -54,6 +55,8 @@ const SILENT: Heard = {
 };
 
 const PROGRESS_EVERY_MS = 400;
+/** How often the eased tempo is sent to the player */
+const TEMPO_EVERY_MS = 150;
 const IDLE_NUDGE_MS = 20000;
 
 export class Music {
@@ -72,6 +75,9 @@ export class Music {
   private lastSection: string | null = null;
   private lastRow: { cue: string; row: number } | null = null;
   private energy = 0;
+  private bpm = 0;
+  private sentBpm = 0;
+  private lastTempoAt = 0;
   private muted = false;
   started = false;
   /** Why the music could not start, if it could not */
@@ -149,11 +155,13 @@ export class Music {
     if (!this.conductor || this.muted) return;
     const player = this.player;
     if (!player) return;
+    // phrases count in sixths of a beat; the song may have finer rows
+    const k = (this.doc?.tempo.linesPerBeat ?? 6) / 6;
     for (const n of phrase) {
       player.playNote(instrument, n.note, {
         at: 'row',
-        delayRows: n.delayRows,
-        rows: n.rows,
+        delayRows: n.delayRows * k,
+        rows: n.rows * k,
         velocity: n.velocity,
       });
     }
@@ -180,10 +188,11 @@ export class Music {
 
     const snap = conductor.snapshot();
     if (snap.section !== this.lastSection) {
-      // each dream heard makes the next one reachable again (the peak comes once per level)
-      if (this.lastSection === 'dream') this.level = Math.min(6, this.level + 1);
+      // each peak heard makes the next one reachable again (the peak comes once per level)
+      if (this.lastSection === 'euphoria') this.level = Math.min(6, this.level + 1);
       this.lastSection = snap.section;
     }
+    this.followTempo(snap.section, now, dt);
     const section = this.game.song.sections.find((s) => s.cue === snap.section);
     const quietParts = (snap.visit?.out.length ?? 0) + (snap.visit?.cut.length ?? 0);
     const target = section ? section.energy - 0.25 * quietParts : 1;
@@ -218,10 +227,24 @@ export class Music {
       beat: pos.beat,
       energy: this.energy,
       section: snap.section,
-      harmony: harmonyAt(this.doc, cue, row),
+      harmony: harmonyAt(this.doc, cue, row, this.doc.tempo.linesPerBeat * 4),
       struck,
       awake: this.engagement.progress,
     };
+  }
+
+  /** Ease the tempo towards the section's; the player retunes live, no restart */
+  private followTempo(section: string | null, now: number, dt: number) {
+    const player = this.player;
+    if (!player || !this.doc) return;
+    const songBpm = this.doc.tempo.bpm;
+    if (this.bpm === 0) this.bpm = songBpm;
+    this.bpm = easeBpm(this.bpm, targetBpm(section, songBpm), dt);
+    if (Math.abs(this.bpm - this.sentBpm) > 0.05 && now - this.lastTempoAt > TEMPO_EVERY_MS) {
+      this.lastTempoAt = now;
+      this.sentBpm = this.bpm;
+      player.setTempo(this.bpm);
+    }
   }
 
   private silentTracks(out: string[], cut: string[], muted: number[] = []): Set<number> {
@@ -246,6 +269,7 @@ export class Music {
     return {
       engagement: this.engagement,
       level: this.level,
+      bpm: this.bpm,
       conductor: this.conductor?.snapshot() ?? null,
     };
   }

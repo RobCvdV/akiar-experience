@@ -74,7 +74,8 @@ export type InstrumentName =
   | 'Dream'
   | 'Shimmer'
   | 'Star'
-  | 'Spark';
+  | 'Spark'
+  | 'Seq';
 
 type Spec = { voices: number; level: number; pan?: number; body: (b: PatchBuilder) => void };
 
@@ -84,8 +85,9 @@ const SPECS: Record<InstrumentName, Spec> = {
     voices: 2,
     level: 0.85,
     body: (b) => {
-      const body = osc(b, { waveform: SINE, fmDepth: 1.6 });
-      b.wire(env(b, 0.001, 0.09, 0, 0.02), body, 'fm');
+      // the pitch drop grows with the note's volume: soft kicks stay round, loud ones punch
+      const body = osc(b, { waveform: SINE, fmDepth: 3.2 });
+      b.wire(vca(b, env(b, 0.001, 0.09, 0, 0.02), b.volume), body, 'fm');
       const round = b.add('tanh', { drive: 1.4, level: 0.9 });
       b.wire(vca(b, body, env(b, 0.002, 0.45, 0, 0.12)), round, 'in');
       const f = b.add('filter', { mode: LOWPASS, cutoff: 900, q: 0.6 });
@@ -220,6 +222,22 @@ const SPECS: Record<InstrumentName, Spec> = {
       b.wire(vib, s, 'fm');
       b.wire(vib, t, 'fm');
       widen(b, vca(b, mix(b, s, t), env(b, 0.07, 0.6, 0.75, 0.9)), 1.2);
+    },
+  },
+  // The trance sixteenths: a DX saw through a resonant lowpass that a short
+  // envelope plucks open, and the note's volume opens further: accents and
+  // volume ramps are heard as filter sweeps.
+  Seq: {
+    voices: 2,
+    level: 0.5,
+    pan: -0.15,
+    body: (b) => {
+      const saw = b.add('dxop', { waveform: DX_SAW });
+      const f = b.add('filter', { mode: LOWPASS, cutoff: 380, q: 5, modDepth: 1, modDepthScale: 12 });
+      b.wire(saw, f, 'in');
+      b.wire(env(b, 0.001, 0.14, 0, 0.08), f, 'cutoffMod', 0.6);
+      b.wire(b.volume, f, 'cutoffMod', 0.5);
+      widen(b, vca(b, f, env(b, 0.002, 0.2, 0.15, 0.1)), 1.4);
     },
   },
   // Far-away bells in the dark: the soundscape's mysterious tones.

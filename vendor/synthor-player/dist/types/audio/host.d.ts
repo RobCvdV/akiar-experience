@@ -146,6 +146,8 @@ export declare class AudioHost {
      * Keys are content hashes; values are mono Float32Array or stereo [L, R].
      */
     updateVfs(vfs: Record<string, Float32Array | Float32Array[]>): Promise<void>;
+    /** Names of the shared resources in the VFS right now (pruning drops some). */
+    listVfs(): Promise<Set<string>>;
     /** Drop shared resources no node references (superseded txSeq uploads). */
     pruneVfs(): Promise<void>;
 }

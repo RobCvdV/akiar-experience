@@ -66,3 +66,24 @@ export function coloursIn(c: Chord, lo: number, hi: number): number[] {
   for (let n = lo; n <= hi; n++) if (c.colours.includes(n % 12)) out.push(n);
   return out;
 }
+
+// ── The trance stages: plain triads around B minor, the pads moving by step ──
+
+export const T_BM = chord('Bm', 35, [54, 59, 62, 66], [61]);
+export const T_G = chord('G', 43, [55, 59, 62, 67], [57]);
+export const T_D = chord('D', 38, [54, 57, 62, 66], [64]);
+export const T_A = chord('A', 45, [52, 57, 61, 64], [59]);
+export const T_EM = chord('Em', 40, [52, 55, 59, 64], [54]);
+
+/** orbit, lift A: i – VI – III – VII */
+export const TRANCE_A: Chord[] = [T_BM, T_G, T_D, T_A];
+/** lift B: iv – VI – III – VII */
+export const TRANCE_B: Chord[] = [T_EM, T_G, T_D, T_A];
+/** euphoria: lifted, landing on the minor */
+export const EUPHORIA: Chord[] = [T_G, T_D, T_A, T_BM];
+/** ignite: out of the dream's A13 into B minor */
+export const IGNITE: Chord[] = [T_G, T_G, T_A, T_A];
+/** surge: the build, held on the dominant */
+export const SURGE: Chord[] = [T_EM, T_G, T_A, T_A];
+/** breakdown: two bars a chord */
+export const BREAKDOWN: Chord[] = [T_BM, T_BM, T_G, T_G, T_D, T_D, T_A, T_A];

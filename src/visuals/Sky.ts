@@ -57,6 +57,8 @@ interface Cloud {
 const STAR_COUNT = 520;
 const SPRITE = 64;
 const HUE_SPRITES = 24;
+/** Strokes per wave: more makes softer edges */
+const WAVE_LAYERS = 9;
 
 export class Sky {
   private ctx: CanvasRenderingContext2D;
@@ -163,6 +165,8 @@ export class Sky {
     const H = canvas.height;
     const motion = f.reducedMotion ? 0.25 : 1;
     const groove = clamp((f.energy - 2.2) / 2.8, 0, 1);
+    // the trance stages (energy past the dream): brighter, faster, more colour
+    const trance = clamp((f.energy - 3.3) / 1.5, 0, 1);
     const beatEnv = f.playing ? (1 - f.beatPhase) ** 4 : 0;
 
     this.react(f);
@@ -172,7 +176,7 @@ export class Sky {
 
     // the sky turns: a slow drift that grows with the groove, plus what the listener spun
     this.spin *= 0.985 ** (dt / 16);
-    const idleSpin = 0.000012 + groove * 0.00005;
+    const idleSpin = 0.000012 + groove * 0.00005 + trance * 0.00008;
     const turnBy = (this.spin + idleSpin) * dt * motion;
     this.orientation = normalize(multiply(axisAngle(this.spinAxis, turnBy), this.orientation));
     this.offset.x += this.offset.vx * dt * motion;
@@ -187,7 +191,7 @@ export class Sky {
     ctx.fillStyle = '#020309';
     ctx.fillRect(0, 0, W, H);
 
-    this.drawGas(f, groove);
+    this.drawGas(f, groove, trance);
     ctx.globalCompositeOperation = 'lighter';
     ctx.imageSmoothingEnabled = true;
     ctx.globalAlpha = 1;
@@ -198,7 +202,7 @@ export class Sky {
     const cx = W / 2 + this.offset.x * this.dpr;
     const cy = H / 2 + this.offset.y * this.dpr;
     const t = f.now / 1000;
-    const wake = 0.55 + 1.1 * f.awake + 0.12 * Math.max(0, f.energy - 1);
+    const wake = 0.55 + 1.1 * f.awake + 0.12 * Math.max(0, f.energy - 1) + 0.6 * trance;
     const dance = groove * motion;
     this.projected = this.stars.map((s, i) => {
       let v = rotate(this.orientation, s.pos);
@@ -273,7 +277,7 @@ export class Sky {
     }
   }
 
-  private drawGas(f: SkyFrame, groove: number) {
+  private drawGas(f: SkyFrame, groove: number, trance: number) {
     const g = this.gasCtx;
     const w = this.gas.width;
     const h = this.gas.height;
@@ -283,14 +287,15 @@ export class Sky {
 
     const glow = clamp((f.energy - 1.3) / 3.7, 0, 1);
     const faint = 0.015 + 0.035 * f.awake;
-    const level = faint + glow * 0.13 + this.breath * 0.06 * glow;
+    // in the trance every kick makes the gas flash
+    const level = faint + glow * 0.13 + this.breath * 0.06 * glow + this.hit * 0.07 * trance;
     const t = f.now;
     for (const c of this.clouds) {
       const x = (c.x + Math.sin(t * c.speed + c.phase) * 0.15 + this.offset.x * 0.0004) * w;
       const y = (c.y + Math.cos(t * c.speed * 0.8 + c.phase) * 0.12 + this.offset.y * 0.0004) * h;
       const r = c.r * Math.max(w, h) * (1 + 0.08 * Math.sin(f.barPhase * Math.PI * 2) * groove);
       const grad = g.createRadialGradient(x, y, 0, x, y, r);
-      const hue = this.hue + c.hueShift;
+      const hue = this.hue + c.hueShift * (1 + trance * 1.5);
       if (level < 0.004) continue;
       grad.addColorStop(0, `hsla(${hue}, 70%, 55%, ${level})`);
       grad.addColorStop(0.5, `hsla(${hue + 25}, 70%, 40%, ${level * 0.45})`);
@@ -303,10 +308,10 @@ export class Sky {
     if (groove > 0.05) {
       g.lineCap = 'round';
       for (let k = 0; k < 3; k++) {
-        const hue = this.hue + 35 * (k - 1);
+        const hue = this.hue + (35 + 45 * trance) * (k - 1);
         const path = new Path2D();
         for (let x = -4; x <= w + 4; x += 3) {
-          const phase = t * (0.0003 + k * 0.0001) + (x / w) * (3 + k);
+          const phase = t * (0.0003 + k * 0.0001) * (1 + 2.5 * trance) + (x / w) * (3 + k);
           const y =
             h * (0.3 + 0.2 * k) +
             Math.sin(phase + f.barPhase * Math.PI * 2) * h * 0.12 +
@@ -314,16 +319,15 @@ export class Sky {
           if (x === -4) path.moveTo(x, y);
           else path.lineTo(x, y);
         }
-        // soft edges: wide and faint under narrow and brighter
-        const alpha = 0.022 * groove * (1 + this.breath);
-        for (const [width, light] of [
-          [0.2, 45],
-          [0.12, 55],
-          [0.06, 65],
-          [0.025, 75],
-        ]) {
-          g.strokeStyle = `hsla(${hue}, 80%, ${light}%, ${alpha})`;
-          g.lineWidth = h * width * (1 + 0.3 * k);
+        // soft edges: many layers, each a little narrower and brighter, so no edge shows
+        const alpha =
+          Math.min(0.06, 0.022 * groove + 0.03 * trance) *
+          (1 + this.breath + this.hit * trance) *
+          0.45;
+        for (let layer = 0; layer < WAVE_LAYERS; layer++) {
+          const f = layer / (WAVE_LAYERS - 1);
+          g.strokeStyle = `hsla(${hue}, 80%, ${45 + 30 * f}%, ${alpha})`;
+          g.lineWidth = h * (0.22 - 0.2 * f ** 0.8) * (1 + 0.3 * k);
           g.stroke(path);
         }
       }

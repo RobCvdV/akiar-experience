@@ -1,6 +1,13 @@
 import type { SampleEntity } from '../domain/types';
 import type { DecodedSize } from '../engine/compile';
 import type { AudioHost } from './host';
+export interface DecodedSamples {
+    loaded: Set<string>;
+    l1Sums: Record<string, number>;
+    decodedSizes: Record<string, DecodedSize>;
+    /** Decoded channels of the samples short enough to be wavetables, by hash. */
+    pcm: Map<string, Float32Array[]>;
+}
 /**
  * Decode sample files into Elementary's VFS so they're playable. `read`
  * supplies each sample's encoded bytes by content hash — from storage in the
@@ -13,8 +20,4 @@ import type { AudioHost } from './host';
  * Sample entities whose stored files are missing or unparseable are NOT
  * in this set — the caller should prune them from the doc.
  */
-export declare function decodeSamplesToVfs(host: AudioHost, samples: SampleEntity[], read: (hash: string) => Promise<ArrayBuffer | null | undefined>): Promise<{
-    loaded: Set<string>;
-    l1Sums: Record<string, number>;
-    decodedSizes: Record<string, DecodedSize>;
-}>;
+export declare function decodeSamplesToVfs(host: AudioHost, samples: SampleEntity[], read: (hash: string) => Promise<ArrayBuffer | null | undefined>): Promise<DecodedSamples>;

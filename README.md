@@ -5,7 +5,9 @@ nothing: a few stars breathing in the dark, a drone with far-away bells. A
 star you come near lights up and sings a tone of the harmony; a click plays a
 short arpeggio that fades; scrolling or swiping turns the sky about a random
 axis. The more you play, the further the music grows: a heartbeat, tuned
-ticks, swung brushes and a walking bass, a glass arpeggio, a dreamy lead — and
+ticks, swung brushes and a walking bass, a glass arpeggio, a dreamy lead,
+then faster and faster into trance: a four-to-the-floor kick, rolling
+sixteenths, an anthem — and
 the sky follows, stars swaying on the beat, gas clouds and waves of colour in
 the harmony's hues. Leave it alone and it settles back into the dark.
 
@@ -40,6 +42,7 @@ Settings → Pages → Source: **GitHub Actions**.
 | `src/music/Music.ts` | Loads the score, starts it on the first gesture, conducts it, tells each frame what is heard |
 | `src/music/engagement.ts` | Pure: gestures → the conductor's progress (0..1), click streaks, slow fading |
 | `src/music/score.ts` | Pure: a cue's row → pattern row, the notes struck there, the harmony sounding |
+| `src/music/tempo.ts` | Pure: each stage's tempo, eased so the music speeds up and slows down gradually |
 | `src/music/phrases.ts` | Pure: a star's tone and a click's arpeggio in the harmony of the moment |
 | `src/visuals/space.ts` | Pure: stars, quaternion rotation, projection, pitch-class colours |
 | `src/visuals/Sky.ts` | Draws the gas, waves, stars and ripples from each frame's state |

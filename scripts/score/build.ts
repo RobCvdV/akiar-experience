@@ -94,6 +94,7 @@ const CHANNELS: MixChannel[] = [
   // thing in the mix and phones feel every one. Drums and bass stay dry.
   channel('chan_drums', 'Drums', 1.2, []),
   channel('chan_space', 'Space', 1, [
+    // 9 rows at 12 a beat: a dotted eighth, the delay that follows the tempo
     effect('chef_space_echo', 'echoS', { time: 9, feedback: 0.4, mix: 0.22, pingpong: 0.75 }),
     effect('chef_space_hall', 'reverb', {
       roomSize: 0.92,
@@ -118,6 +119,7 @@ const CHANNEL_OF: Record<InstrumentName, string> = {
   Shimmer: 'chan_space',
   Star: 'chan_space',
   Spark: 'chan_space',
+  Seq: 'chan_space',
 };
 
 /**
@@ -168,7 +170,12 @@ export function buildDoc(): Doc {
       }
       carryVolumes(cells);
       const tid = `trk_${slug}_${t}`;
-      tracks[tid] = { id: tid, instrumentId: instId(TRACK_INSTRUMENT[t]), cells, effectLanes: [] };
+      tracks[tid] = {
+        id: tid,
+        instrumentId: instId(spec.instruments[t] ?? TRACK_INSTRUMENT[t]),
+        cells,
+        effectLanes: [],
+      };
       trackIds.push(tid);
     }
     patterns[pid] = { id: pid, name: spec.name, length, trackIds };

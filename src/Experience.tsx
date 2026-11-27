@@ -165,7 +165,7 @@ export function Experience() {
       el.textContent = [
         `audio ${a.state} ${a.sampleRate} Hz, hint ${options.latencyHint}`,
         `buffer ${(a.baseLatency * 1000).toFixed(1)} ms, output ${(a.outputLatency * 1000).toFixed(1)} ms`,
-        `${fps} fps, ${section ?? '-'} ${energy.toFixed(2)}`,
+        `${fps} fps, ${section ?? '-'} ${energy.toFixed(2)}, ${music.snapshot().bpm.toFixed(1)} bpm`,
         ...(music.failure ? [`failed: ${music.failure}`] : []),
       ].join('\n');
       frames = 0;

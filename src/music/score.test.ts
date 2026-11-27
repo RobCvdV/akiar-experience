@@ -109,10 +109,12 @@ describe('the Akiar score', () => {
   it('has a real chord on every bar of every stage', () => {
     for (const section of game.song.sections) {
       const rows = cuePatterns(doc, section.cue).reduce((n, p) => n + p.length, 0);
-      for (let row = 0; row < rows; row += 24) {
-        expect(harmonyAt(doc, section.cue, row + 12), `${section.cue} row ${row}`).not.toBe(
-          DEFAULT_HARMONY,
-        );
+      const bar = doc.tempo.linesPerBeat * 4;
+      for (let row = 0; row < rows; row += bar) {
+        expect(
+          harmonyAt(doc, section.cue, row + bar / 2, bar),
+          `${section.cue} row ${row}`,
+        ).not.toBe(DEFAULT_HARMONY);
       }
     }
   });

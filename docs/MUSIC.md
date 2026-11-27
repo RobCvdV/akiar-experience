@@ -8,33 +8,50 @@ reports what the listener does.
 
 ## The score
 
-84 BPM, **6 rows per beat** (24 per bar): eighths swing on the triplet grid
-(rows 0 and 4 of a beat). D is home: lydian and dorian colours, maj9 / #11 /
-sus chords, and two chromatic turns (Fmaj7#11, Cmaj7#11) on the way to the
-dream.
+**12 rows per beat** (48 per bar), so both kinds of time fit: swung triplet
+eighths for the jazz (rows 0 and 8 of a beat; those parts are written in
+sixths of a beat and doubled) and straight sixteenths for the trance (3 rows).
+The song saves 84 BPM; **the page sets the tempo per stage** and eases there
+(`src/music/tempo.ts`, at most 2.2 BPM a second): 84 in the dark, up to 100
+in the dream, 110–126 through the trance, back down after.
 
-| Stage (section) | Energy | What plays |
-|---|---|---|
-| `void` | 1.2 | A D-lydian drone, then G lydian; far bells at random. Where it starts and where it rests |
-| `nebula` | 1.9 | Pads move through Dmaj9 – Bm11 – Gmaj13#11 – A7sus; a soft held bass |
-| `pulse` | 2.6 | A heartbeat kick, tuned ticks, long Rhodes chords, the first ride |
-| `drift` | 3.3 | The groove: swung ride, brushes, feathered kick, a walking bass, Rhodes comping (Em9 – A13 – Dmaj9 – Gmaj13#11) |
-| `constellation` | 4.0 | Eight bars of prog B (Gmaj9 – F#m9 – Em11 – Fmaj7#11 – Dmaj9 – Bm9 – Cmaj7#11 – A13sus♭9), the glass arpeggio in shifting rhythms |
-| `bloom` | 4.3 | Transition into the dream: a rising, speeding arpeggio, swelling brushes |
-| `dream` | 5.0 | Prog B with everything and the dream lead's melody |
-| `afterglow` | 1.7 | After the peak: pads, echoes of the melody, bells |
+Two worlds, one arc. The jazz has D at home: lydian and dorian colours, maj9 /
+#11 / sus chords, two chromatic turns (Fmaj7#11, Cmaj7#11). The trance is
+plain: B-minor triads, the pads moving by step (Bm – G – D – A, Em – G – D – A,
+G – D – A – Bm).
 
-Fills (one bar, played in the mix they break into): `fill-swing` (a brush
-roll, for busy stages), `fill-shimmer` (falling bells, for quiet ones), `rise`
-(going up), `fall` (going down).
+| Stage (section) | Energy | BPM | What plays |
+|---|---|---|---|
+| `void` | 1.0 | 84 | A D-lydian drone, then G lydian; far bells at random. Where it starts and where it rests |
+| `nebula` | 1.4 | 84 | Pads move through Dmaj9 – Bm11 – Gmaj13#11 – A7sus; a soft held bass |
+| `pulse` | 1.8 | 86 | A heartbeat kick, tuned ticks, long Rhodes chords, the first ride |
+| `drift` | 2.3 | 90 | The groove: swung ride, brushes, feathered kick, a walking bass, Rhodes comping (Em9 – A13 – Dmaj9 – Gmaj13#11) |
+| `constellation` | 2.7 | 94 | Prog B (Gmaj9 – F#m9 – Em11 – Fmaj7#11 – Dmaj9 – Bm9 – Cmaj7#11 – A13sus♭9), the glass arpeggio in shifting rhythms |
+| `bloom` | 2.9 | 97 | Transition into the dream: a rising, speeding arpeggio, swelling brushes |
+| `dream` | 3.1 | 100 | Prog B with everything and the dream lead's melody |
+| `ignite` | 3.4 | 110 | Transition into the trance: the kick comes in four to the floor, Seq's sixteenths open up |
+| `orbit` | 3.8 | 118 | Kick, offbeat hats and bass, Seq's rolling sixteenths, pads |
+| `lift` | 4.3 | 122 | Plus claps, the Glass in three against four, Rhodes stabs, a calling lead |
+| `surge` | 4.6 | 125 | Transition into the peak: a clap roll, Seq sweeping open, the kick drops for the last bar |
+| `euphoria` | 5.0 | 126 | Everything and the anthem lead (an octave up the second time) |
+| `breakdown` | 2.6 | 122 | No kick: pads, a dim Seq, the Glass, the lead high; then the surge again |
+| `afterglow` | 1.5 | 86 | After a peak: pads, echoes of the melody, bells |
+
+The peak (`song.peak`) is `surge`: from 85 % engagement the music heads
+there, through the trance stages. Fills (one bar, played in the mix they
+break into): `fill-swing` (a brush roll, for busy stages), `fill-shimmer`
+(falling bells, for quiet ones), `rise` (going up), `fall` (going down).
 
 ### Tracks (the same in every pattern)
 
-1 Kick · 2 Brush · 3 Ride · 4 Tick · 5 Bass · 6–9 Nebula (pads) · 10–12 Rhodes
-· 13 Glass (arp) · 14 Dream (lead) · 15 Shimmer (bells) · 16–17 Star · 18–20
+1 Kick · 2 Brush (claps in the trance) · 3 Ride (hats in the trance) · 4 Tick
+(**Seq** in the trance stages) · 5 Bass · 6–9 Nebula (pads) · 10–12 Rhodes ·
+13 Glass (arp) · 14 Dream (lead) · 15 Shimmer (bells) · 16–17 Star · 18–20
 Spark. Star and Spark are empty: the page plays them live (a star's tone, a
 click's arpeggio), so they need their tracks to have voices. The DJ's groups
-(`dj.groups`) name these track numbers.
+(`dj.groups`) name these track numbers. The Kick punches harder the louder the
+note (the volume deepens its pitch drop); Seq's filter opens with the note's
+volume, so volume ramps are heard as filter sweeps.
 
 ### The contract
 
@@ -90,12 +107,15 @@ synthor's offline renderer (relative numbers; the Zwap score is ≈ 98 %):
 
 | | before | now |
 |---|---|---|
-| Whole score | 123 % | 62 % |
+| Whole score (before the trance) | 123 % | 62 % |
 | Nebula (4 pad voices) | 49 % | 10 % |
 
-- The player is built from synthor's oscillator work (`4d775af`, branch
-  `claude/hopeful-brahmagupta-qha6z6`, not yet on main): the score costs
-  25 % less on it (Zwap's 50 %). Rebuild from main once it is merged.
+- The player is built from synthor's oscillator work (`077554f`, branch
+  `claude/hopeful-brahmagupta-qha6z6`, not yet on main; it needs that
+  branch's own `vendor/elementary-js`, whose wasm has the native `wtosc`
+  oscillator). Rebuild from main once it is merged.
+- The trance stages add one voice (Seq): relative to Zwap's score the song
+  costs about as much as before.
 - Modules cost about the same each, so the count matters, times the voices.
 - **An `osc` saw, square or pulse costs ~4× a sine or triangle** once the
   sequencer drives its frequency (band-limiting per sample). For a saw under

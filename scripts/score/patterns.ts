@@ -1,11 +1,20 @@
 /**
- * The patterns, stage by stage. Six rows per beat, so the eighths swing on
- * triplets (rows 0 and 4 of a beat); 24 rows per bar. A seeded random keeps
- * the drums loose (ghosts, skipped hits, pickups) but the same on every build.
+ * The patterns, stage by stage. The song runs at 12 rows per beat, so both
+ * straight sixteenths (3 rows, the trance stages) and swung triplet eighths
+ * (rows 0 and 8 of a beat, the jazz stages) fit. The jazz parts are written
+ * in sixths of a beat (`JAZZ`: 24 to a bar) and doubled on the way out; the
+ * trance parts in rows (`TRANCE`: 48 to a bar). A seeded random keeps the
+ * drums loose (ghosts, skipped hits, pickups) but the same on every build.
  */
 import {
   AFTERGLOW,
   BLOOM,
+  BREAKDOWN,
+  EUPHORIA,
+  IGNITE,
+  SURGE,
+  TRANCE_A,
+  TRANCE_B,
   type Chord,
   coloursIn,
   D_LYDIAN,
@@ -14,9 +23,19 @@ import {
   PROG_B,
   PROG_C,
 } from './harmony';
+import type { InstrumentName } from './instruments';
 
-export const ROWS_PER_BEAT = 6;
+export const ROWS_PER_BEAT = 12;
+/** Rows in a bar of the song */
 export const BAR = ROWS_PER_BEAT * 4;
+
+/** How a pattern's parts count: units per bar, and rows per unit */
+interface Grid {
+  bar: number;
+  scale: number;
+}
+const JAZZ: Grid = { bar: 24, scale: 2 };
+const TRANCE: Grid = { bar: 48, scale: 1 };
 
 /** Track numbers (1-based) — the same in every pattern */
 export const T = {
@@ -49,6 +68,8 @@ export interface PatternSpec {
   notes: Map<number, NoteEvent[]>;
   /** The chord of each bar, for the page's harmony */
   chords: Chord[];
+  /** Track numbers that play another instrument than usual in this pattern */
+  instruments: Partial<Record<number, InstrumentName>>;
 }
 
 type Random = () => number;
@@ -70,14 +91,22 @@ class Writer {
     readonly name: string,
     readonly chords: Chord[],
     readonly rnd: Random,
+    readonly grid: Grid = JAZZ,
+    readonly instruments: Partial<Record<number, InstrumentName>> = {},
   ) {}
+
+  /** Units in a bar */
+  get bar() {
+    return this.grid.bar;
+  }
 
   get bars() {
     return this.chords.length;
   }
 
+  /** Units in the pattern */
   get rows() {
-    return this.bars * BAR;
+    return this.bars * this.bar;
   }
 
   /** A note on `track`, clipped to the pattern (and to the next note on that track) */
@@ -101,14 +130,18 @@ class Writer {
     return vol * (1 - spread / 2 + this.rnd() * spread);
   }
 
+  /** The notes in song rows */
   spec(): PatternSpec {
-    for (const list of this.notes.values()) {
+    const k = this.grid.scale;
+    const notes = new Map<number, NoteEvent[]>();
+    for (const [track, list] of this.notes) {
       list.sort((a, b) => a.row - b.row);
       for (let i = 0; i < list.length - 1; i++) {
         list[i].rows = Math.max(1, Math.min(list[i].rows, list[i + 1].row - list[i].row));
       }
+      notes.set(track, list.map((n) => ({ ...n, row: n.row * k, rows: n.rows * k })));
     }
-    return { name: this.name, bars: this.bars, notes: this.notes, chords: this.chords };
+    return { name: this.name, bars: this.bars, notes, chords: this.chords, instruments: this.instruments };
   }
 }
 
@@ -126,10 +159,10 @@ function pads(w: Writer, vol: number, barsPerChord = 1) {
         // extend the previous note instead of re-striking it
         const list = w.notes.get(T.pad[v]);
         const last = list?.[list.length - 1];
-        if (last) last.rows += barsPerChord * BAR;
+        if (last) last.rows += barsPerChord * w.bar;
         return;
       }
-      w.put(T.pad[v], bar * BAR, note, barsPerChord * BAR - 1, w.human(vol, 0.08));
+      w.put(T.pad[v], bar * w.bar, note, barsPerChord * w.bar - 1, w.human(vol, 0.08));
     });
   }
 }
@@ -140,7 +173,7 @@ function shimmer(w: Writer, perBar: number, vol: number, lo = 74, hi = 93) {
     const tones = coloursIn(w.chords[bar], lo, hi);
     let count = Math.floor(perBar) + (w.chance(perBar % 1) ? 1 : 0);
     while (count-- > 0) {
-      const row = bar * BAR + w.pick([1, 3, 5, 8, 9, 13, 15, 17, 20, 21]);
+      const row = bar * w.bar + w.pick([1, 3, 5, 8, 9, 13, 15, 17, 20, 21]);
       w.put(T.shimmer, row, w.pick(tones), 10 + Math.floor(w.rnd() * 24), w.human(vol, 0.4));
     }
   }
@@ -151,9 +184,9 @@ function bass(w: Writer, style: 'long' | 'pulse' | 'walk', vol: number) {
   for (let bar = 0; bar < w.bars; bar++) {
     const c = w.chords[bar];
     const next = w.chords[(bar + 1) % w.bars];
-    const at = bar * BAR;
+    const at = bar * w.bar;
     if (style === 'long') {
-      w.put(T.bass, at, c.bass, BAR - 2, w.human(vol));
+      w.put(T.bass, at, c.bass, w.bar - 2, w.human(vol));
     } else if (style === 'pulse') {
       w.put(T.bass, at, c.bass, 14, w.human(vol));
       w.put(T.bass, at + 16, w.chance(0.5) ? c.bass + 7 : c.bass + 12, 6, w.human(vol * 0.75));
@@ -162,10 +195,10 @@ function bass(w: Writer, style: 'long' | 'pulse' | 'walk', vol: number) {
       const approach = next.bass + (w.chance(0.5) ? -1 : 1);
       const walk = [c.bass, w.pick(tones), w.pick(tones), approach];
       walk.forEach((note, beat) => {
-        w.put(T.bass, at + beat * ROWS_PER_BEAT, note, 5, w.human(beat === 0 ? vol : vol * 0.8));
+        w.put(T.bass, at + beat * (w.bar / 4), note, 5, w.human(beat === 0 ? vol : vol * 0.8));
         // now and then a swung pickup into the next beat
         if (beat < 3 && w.chance(0.18))
-          w.put(T.bass, at + beat * ROWS_PER_BEAT + 4, w.pick(tones), 2, vol * 0.55);
+          w.put(T.bass, at + beat * (w.bar / 4) + 4, w.pick(tones), 2, vol * 0.55);
       });
     }
   }
@@ -194,13 +227,13 @@ function keys(w: Writer, style: 'long' | 'charleston' | 'float', vol: number) {
     const shell = [c.pad[1], c.pad[2], c.pad[3]];
     const hits = w.pick(rhythms[style]);
     hits.forEach((offset, i) => {
-      const nextAt = hits[i + 1] ?? BAR;
-      const len = style === 'long' ? BAR - 4 : Math.max(3, nextAt - offset - 1);
+      const nextAt = hits[i + 1] ?? w.bar;
+      const len = style === 'long' ? w.bar - 4 : Math.max(3, nextAt - offset - 1);
       // a hit on the bar's last eighth anticipates the next chord
       const chordAt = offset >= 22 ? w.chords[(bar + 1) % w.bars] : c;
       const notes = offset >= 22 ? [chordAt.pad[1], chordAt.pad[2], chordAt.pad[3]] : shell;
       notes.forEach((note, k) =>
-        w.put(T.keys[k], bar * BAR + offset, note + 12, len, w.human(vol)),
+        w.put(T.keys[k], bar * w.bar + offset, note + 12, len, w.human(vol)),
       );
     });
   }
@@ -209,7 +242,7 @@ function keys(w: Writer, style: 'long' | 'charleston' | 'float', vol: number) {
 /** The ride: ding, ding-da ding, ding-da — loose, with skips and extra skips */
 function ride(w: Writer, vol: number, busy: number) {
   for (let bar = 0; bar < w.bars; bar++) {
-    const at = bar * BAR;
+    const at = bar * w.bar;
     const base = [0, 6, 10, 12, 18, 22];
     for (const r of base) {
       const strong = r % 6 === 0;
@@ -223,7 +256,7 @@ function ride(w: Writer, vol: number, busy: number) {
 /** Brushes on two and four, with ghosted triplets */
 function brush(w: Writer, vol: number, ghosts: number) {
   for (let bar = 0; bar < w.bars; bar++) {
-    const at = bar * BAR;
+    const at = bar * w.bar;
     w.put(T.brush, at + 6, 50, 3, w.human(vol));
     w.put(T.brush, at + 18, 50, 3, w.human(vol));
     for (const r of [2, 4, 8, 10, 14, 16, 20, 22]) {
@@ -235,7 +268,7 @@ function brush(w: Writer, vol: number, ghosts: number) {
 /** A soft kick: a heartbeat, or feathered fours with a push */
 function kick(w: Writer, style: 'heart' | 'feather', vol: number) {
   for (let bar = 0; bar < w.bars; bar++) {
-    const at = bar * BAR;
+    const at = bar * w.bar;
     if (style === 'heart') {
       w.put(T.kick, at, 36, 2, w.human(vol));
       w.put(T.kick, at + 4, 36, 2, w.human(vol * 0.55));
@@ -252,10 +285,10 @@ function kick(w: Writer, style: 'heart' | 'feather', vol: number) {
 function ticks(w: Writer, density: number, vol: number) {
   for (let bar = 0; bar < w.bars; bar++) {
     const tones = coloursIn(w.chords[bar], 74, 88);
-    for (let r = 0; r < BAR; r += 2) {
+    for (let r = 0; r < w.bar; r += 2) {
       const onBeat = r % 6 === 0;
       if (w.chance(density * (onBeat ? 0.6 : 1)))
-        w.put(T.tick, bar * BAR + r, w.pick(tones), 1, w.human(vol, 0.5));
+        w.put(T.tick, bar * w.bar + r, w.pick(tones), 1, w.human(vol, 0.5));
     }
   }
 }
@@ -279,7 +312,7 @@ function arp(w: Writer, density: number, vol: number, lo = 62, hi = 86) {
       for (const r of w.pick(cells)) {
         w.put(
           T.arp,
-          bar * BAR + beat * 6 + r,
+          bar * w.bar + beat * 6 + r,
           tones[i],
           2,
           w.human(r === 0 ? vol : vol * 0.78, 0.2),
@@ -298,13 +331,13 @@ function riser(w: Writer, vol: number) {
     const tones = coloursIn(w.chords[bar], 60 + bar * 4, 84 + bar * 3);
     const step = bar < w.bars / 2 ? 4 : 2;
     let k = 0;
-    for (let r = 0; r < BAR; r += step) {
+    for (let r = 0; r < w.bar; r += step) {
       w.put(
         T.arp,
-        bar * BAR + r,
+        bar * w.bar + r,
         tones[k % tones.length] + 12 * Math.floor(k / tones.length),
         step,
-        vol * (0.5 + 0.5 * ((bar * BAR + r) / w.rows)),
+        vol * (0.5 + 0.5 * ((bar * w.bar + r) / w.rows)),
       );
       k++;
     }
@@ -359,11 +392,11 @@ function melody(w: Writer, fromBar: number, vol: number, ornament: number) {
     const phrase = MELODY[(fromBar + bar) % MELODY.length];
     const tones = coloursIn(w.chords[bar], 64, 86);
     for (const [r, note, rows] of phrase) {
-      w.put(T.lead, bar * BAR + r, note, rows, w.human(r === 0 ? vol : vol * 0.85));
+      w.put(T.lead, bar * w.bar + r, note, rows, w.human(r === 0 ? vol : vol * 0.85));
       // a grace from a neighbouring colour, now and then
       if (ornament > 0 && rows >= 8 && w.chance(ornament)) {
         const near = tones.filter((n) => Math.abs(n - note) <= 4 && n !== note);
-        if (near.length) w.put(T.lead, bar * BAR + r + rows - 2, w.pick(near), 2, vol * 0.6);
+        if (near.length) w.put(T.lead, bar * w.bar + r + rows - 2, w.pick(near), 2, vol * 0.6);
       }
     }
   }
@@ -373,8 +406,111 @@ function melody(w: Writer, fromBar: number, vol: number, ornament: number) {
 function echoes(w: Writer, vol: number) {
   for (let bar = 0; bar < w.bars; bar += 2) {
     const tones = coloursIn(w.chords[bar], 69, 81);
-    w.put(T.lead, bar * BAR + 4, w.pick(tones), 14, vol);
-    w.put(T.lead, bar * BAR + 28, w.pick(tones), 16, vol * 0.8);
+    w.put(T.lead, bar * w.bar + 4, w.pick(tones), 14, vol);
+    w.put(T.lead, bar * w.bar + 28, w.pick(tones), 16, vol * 0.8);
+  }
+}
+
+// ── Trance parts (on the row grid: 12 a beat, 3 a sixteenth) ───────────────
+
+/** Four on the floor, from bar `from`; `fadeIn` bars to come up to `vol` */
+function fourFloor(w: Writer, vol: number, from = 0, fadeIn = 0) {
+  for (let bar = from; bar < w.bars; bar++) {
+    const lift = fadeIn > 0 ? Math.min(1, (bar - from + 1) / fadeIn) : 1;
+    for (let beat = 0; beat < 4; beat++) w.put(T.kick, bar * 48 + beat * 12, 36, 4, w.human(vol * lift, 0.06));
+  }
+}
+
+/** Claps on two and four, a ghost before the four now and then */
+function claps(w: Writer, vol: number) {
+  for (let bar = 0; bar < w.bars; bar++) {
+    w.put(T.brush, bar * 48 + 12, 50, 4, w.human(vol, 0.06));
+    w.put(T.brush, bar * 48 + 36, 50, 4, w.human(vol, 0.06));
+    if (w.chance(0.4)) w.put(T.brush, bar * 48 + 33, 50, 2, vol * 0.35);
+  }
+}
+
+/** Open hats on the offbeats; with `sixteenths`, quiet closed ones between */
+function hats(w: Writer, vol: number, sixteenths = 0) {
+  for (let bar = 0; bar < w.bars; bar++) {
+    for (let r = 0; r < 48; r += 3) {
+      if (r % 12 === 6) w.put(T.ride, bar * 48 + r, 86, 4, w.human(vol, 0.08));
+      else if (sixteenths > 0 && r % 12 !== 0 && w.chance(0.85)) w.put(T.ride, bar * 48 + r, 86, 1, w.human(vol * sixteenths, 0.3));
+    }
+  }
+}
+
+/** The offbeat bass; `bounce` adds sixteenth pickups */
+function offbeatBass(w: Writer, vol: number, bounce = 0) {
+  for (let bar = 0; bar < w.bars; bar++) {
+    const root = w.chords[bar].bass + 12;
+    for (let beat = 0; beat < 4; beat++) {
+      w.put(T.bass, bar * 48 + beat * 12 + 6, root, 5, w.human(vol, 0.06));
+      if (w.chance(bounce)) w.put(T.bass, bar * 48 + beat * 12 + 9, root + (w.chance(0.3) ? 12 : 0), 2, vol * 0.7);
+    }
+  }
+}
+
+/** Sixteenths through the chord, an accent shape over the bar; volume opens Seq's filter */
+const SEQ_STEPS = [0, 2, 1, 3, 0, 2, 4, 3, 0, 2, 1, 3, 4, 2, 3, 1];
+const SEQ_ACCENT = [1, 0.55, 0.7, 0.55, 0.9, 0.55, 0.75, 0.6, 1, 0.55, 0.7, 0.55, 0.85, 0.6, 0.8, 0.65];
+function seq(w: Writer, vol: number, ramp: [number, number] = [1, 1], lo = 59) {
+  for (let bar = 0; bar < w.bars; bar++) {
+    const tones = coloursIn(w.chords[bar], lo, lo + 20).filter((n) => w.chords[bar].pad.some((p) => p % 12 === n % 12));
+    for (let step = 0; step < 16; step++) {
+      const at = (bar * 16 + step) / (w.bars * 16);
+      const level = vol * (ramp[0] + (ramp[1] - ramp[0]) * at) * SEQ_ACCENT[step];
+      w.put(T.tick, bar * 48 + step * 3, tones[SEQ_STEPS[step] % tones.length], 2, level);
+    }
+  }
+}
+
+/** Three notes cycling on sixteenths: three against four, the arp of the Glass */
+function crossArp(w: Writer, vol: number, lo = 71) {
+  let k = 0;
+  for (let bar = 0; bar < w.bars; bar++) {
+    const tones = coloursIn(w.chords[bar], lo, lo + 14).slice(0, 3);
+    for (let r = 0; r < 48; r += 3) {
+      w.put(T.arp, bar * 48 + r, tones[k % 3], 2, (k % 3 === 0 ? vol : vol * 0.7) * (0.9 + 0.1 * Math.sin(k)));
+      k++;
+    }
+  }
+}
+
+/** Chord stabs on the Rhodes, syncopated */
+function stabs(w: Writer, vol: number) {
+  const rhythms = [[6, 30, 39], [6, 18, 42], [9, 30], [6, 27, 42]];
+  for (let bar = 0; bar < w.bars; bar++) {
+    const c = w.chords[bar];
+    for (const r of w.pick(rhythms)) [c.pad[1], c.pad[2], c.pad[3]].forEach((n, k) => w.put(T.keys[k], bar * 48 + r, n + 12, 4, w.human(vol)));
+  }
+}
+
+/** A build: claps from eighths to sixteenths to triplet sixteenths, swelling */
+function roll(w: Writer, vol: number) {
+  for (let bar = 0; bar < w.bars; bar++) {
+    const step = bar < w.bars / 2 ? 6 : bar < w.bars - 1 ? 3 : 2;
+    for (let r = 0; r < 48; r += step) w.put(T.brush, bar * 48 + r, 50, 1, vol * (0.25 + 0.75 * ((bar * 48 + r) / w.rows)));
+  }
+}
+
+/** Melodies in rows: [row in bar, note, rows] per bar */
+const ANTHEM: [number, number, number][][] = [
+  [[0, 71, 12], [12, 74, 12], [24, 79, 24]],
+  [[0, 78, 24], [24, 76, 12], [36, 74, 12]],
+  [[0, 76, 18], [18, 73, 6], [24, 69, 24]],
+  [[0, 74, 30], [30, 73, 6], [36, 71, 12]],
+];
+const CALL: [number, number, number][][] = [
+  [[0, 71, 36]],
+  [[0, 74, 24], [24, 71, 24]],
+  [[0, 78, 36]],
+  [[0, 76, 24], [24, 73, 18]],
+];
+
+function line(w: Writer, phrases: [number, number, number][][], vol: number, octave = 0) {
+  for (let bar = 0; bar < w.bars; bar++) {
+    for (const [r, note, rows] of phrases[bar % phrases.length]) w.put(T.lead, bar * 48 + r, note + octave, rows, w.human(vol, 0.06));
   }
 }
 
@@ -382,7 +518,18 @@ function echoes(w: Writer, vol: number) {
 
 type Stage = (w: Writer) => void;
 
-const STAGES: Record<string, { chords: Chord[]; seed: number; write: Stage }> = {
+interface StageDef {
+  chords: Chord[];
+  seed: number;
+  write: Stage;
+  grid?: Grid;
+  instruments?: Partial<Record<number, InstrumentName>>;
+}
+
+/** The trance stages play their sixteenths on Seq instead of the jazz's Tick */
+const TRANCE_KIT = { grid: TRANCE, instruments: { [T.tick]: 'Seq' as const } };
+
+const STAGES: Record<string, StageDef> = {
   'void A': {
     chords: [D_LYDIAN, D_LYDIAN, D_LYDIAN, D_LYDIAN],
     seed: 11,
@@ -557,6 +704,138 @@ const STAGES: Record<string, { chords: Chord[]; seed: number; write: Stage }> = 
       shimmer(w, 1.2, 0.45);
     },
   },
+  // ── Trance ──
+  ignite: {
+    chords: IGNITE,
+    seed: 101,
+    ...TRANCE_KIT,
+    write: (w) => {
+      pads(w, 0.38, 2);
+      fourFloor(w, 0.85, 1, 3);
+      hats(w, 0.35);
+      seq(w, 0.7, [0.25, 0.9]);
+      for (let bar = 2; bar < w.bars; bar++) w.put(T.bass, bar * 48 + 6, w.chords[bar].bass + 12, 5, 0.5);
+    },
+  },
+  'orbit A': {
+    chords: TRANCE_A,
+    seed: 111,
+    ...TRANCE_KIT,
+    write: (w) => {
+      pads(w, 0.34);
+      fourFloor(w, 0.9);
+      hats(w, 0.45);
+      offbeatBass(w, 0.6);
+      seq(w, 0.75, [0.55, 0.8]);
+      shimmer(w, 0.4, 0.35);
+    },
+  },
+  'orbit B': {
+    chords: TRANCE_A,
+    seed: 112,
+    ...TRANCE_KIT,
+    write: (w) => {
+      pads(w, 0.34);
+      fourFloor(w, 0.9);
+      hats(w, 0.45, 0.25);
+      offbeatBass(w, 0.62, 0.15);
+      seq(w, 0.75, [0.8, 1]);
+      crossArp(w, 0.3);
+    },
+  },
+  'lift A': {
+    chords: TRANCE_A,
+    seed: 121,
+    ...TRANCE_KIT,
+    write: (w) => {
+      pads(w, 0.36);
+      fourFloor(w, 0.92);
+      claps(w, 0.7);
+      hats(w, 0.5, 0.3);
+      offbeatBass(w, 0.65, 0.25);
+      seq(w, 0.8);
+      crossArp(w, 0.42);
+      stabs(w, 0.35);
+      line(w, CALL, 0.45);
+    },
+  },
+  'lift B': {
+    chords: TRANCE_B,
+    seed: 122,
+    ...TRANCE_KIT,
+    write: (w) => {
+      pads(w, 0.36);
+      fourFloor(w, 0.92);
+      claps(w, 0.7);
+      hats(w, 0.5, 0.3);
+      offbeatBass(w, 0.65, 0.25);
+      seq(w, 0.8);
+      crossArp(w, 0.42);
+      stabs(w, 0.35);
+      line(w, CALL, 0.45);
+    },
+  },
+  surge: {
+    chords: SURGE,
+    seed: 131,
+    ...TRANCE_KIT,
+    write: (w) => {
+      pads(w, 0.4);
+      // the kick drops out for the last bar: the peak lands on its return
+      for (let bar = 0; bar < w.bars - 1; bar++) for (let beat = 0; beat < 4; beat++) w.put(T.kick, bar * 48 + beat * 12, 36, 4, 0.9);
+      roll(w, 0.8);
+      hats(w, 0.45, 0.35);
+      seq(w, 0.85, [0.4, 1.15]);
+      crossArp(w, 0.4);
+      for (let bar = 0; bar < w.bars - 1; bar++) for (let beat = 0; beat < 4; beat++) w.put(T.bass, bar * 48 + beat * 12 + 6, w.chords[bar].bass + 12, 5, 0.6);
+    },
+  },
+  'euphoria A': {
+    chords: EUPHORIA,
+    seed: 141,
+    ...TRANCE_KIT,
+    write: (w) => {
+      pads(w, 0.4);
+      fourFloor(w, 0.95);
+      claps(w, 0.75);
+      hats(w, 0.55, 0.35);
+      offbeatBass(w, 0.7, 0.3);
+      seq(w, 0.85);
+      crossArp(w, 0.45);
+      stabs(w, 0.38);
+      line(w, ANTHEM, 0.6);
+      shimmer(w, 0.5, 0.35, 86, 98);
+    },
+  },
+  'euphoria B': {
+    chords: EUPHORIA,
+    seed: 142,
+    ...TRANCE_KIT,
+    write: (w) => {
+      pads(w, 0.4);
+      fourFloor(w, 0.95);
+      claps(w, 0.75);
+      hats(w, 0.55, 0.4);
+      offbeatBass(w, 0.7, 0.35);
+      seq(w, 0.9);
+      crossArp(w, 0.48, 78);
+      stabs(w, 0.4);
+      line(w, ANTHEM, 0.62, 12);
+    },
+  },
+  breakdown: {
+    chords: BREAKDOWN,
+    seed: 151,
+    ...TRANCE_KIT,
+    write: (w) => {
+      pads(w, 0.45, 2);
+      seq(w, 0.5, [0.35, 0.75]);
+      crossArp(w, 0.3);
+      line(w, CALL, 0.4, 12);
+      shimmer(w, 0.8, 0.4);
+      hats(w, 0.25);
+    },
+  },
   // ── Fills (one bar; the conductor plays them in the mix they break into) ──
   'fill-swing': {
     chords: [D_LYDIAN],
@@ -587,7 +866,7 @@ const STAGES: Record<string, { chords: Chord[]; seed: number; write: Stage }> = 
       [62, 64, 66, 68, 69, 71, 73, 74, 76, 78, 80, 81].forEach((n, i) =>
         w.put(T.arp, i * 2, n, 2, 0.35 + i * 0.04),
       );
-      for (let r = 0; r < BAR; r += 2) w.put(T.brush, r, 50, 1, 0.1 + r / 40);
+      for (let r = 0; r < w.bar; r += 2) w.put(T.brush, r, 50, 1, 0.1 + r / 40);
     },
   },
   fall: {
@@ -603,7 +882,7 @@ const STAGES: Record<string, { chords: Chord[]; seed: number; write: Stage }> = 
 
 export function writePatterns(): PatternSpec[] {
   return Object.entries(STAGES).map(([name, stage]) => {
-    const w = new Writer(name, stage.chords, mulberry32(stage.seed));
+    const w = new Writer(name, stage.chords, mulberry32(stage.seed), stage.grid, stage.instruments);
     stage.write(w);
     return w.spec();
   });
@@ -618,5 +897,11 @@ export const SECTIONS: Record<string, string[]> = {
   constellation: ['constellation A', 'constellation B'],
   bloom: ['bloom'],
   dream: ['dream A', 'dream B'],
+  ignite: ['ignite'],
+  orbit: ['orbit A', 'orbit B'],
+  lift: ['lift A', 'lift B'],
+  surge: ['surge'],
+  euphoria: ['euphoria A', 'euphoria B'],
+  breakdown: ['breakdown'],
   afterglow: ['afterglow'],
 };

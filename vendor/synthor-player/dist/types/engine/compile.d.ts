@@ -13,7 +13,7 @@ export interface DecodedSize {
  * `decoded` wins over the entity's frames and rate: those come from the machine that imported the
  * sample, and decoding resamples to this machine's rate.
  */
-export declare function buildSampleMeta(samples: Record<Id, SampleEntity>, vfsLoaded?: Set<string>, l1Sums?: Record<string, number>, decoded?: Record<string, DecodedSize>): Record<Id, SampleMeta>;
+export declare function buildSampleMeta(samples: Record<Id, SampleEntity>, vfsLoaded?: Set<string>, l1Sums?: Record<string, number>, decoded?: Record<string, DecodedSize>, mipKeys?: ReadonlySet<string>): Record<Id, SampleMeta>;
 /** Get the default gain for an instrument, regardless of kind. */
 export declare function getInstGain(inst: Instrument): number;
 /** Everything the compiler needs from the transport, as plain data. */
@@ -27,6 +27,8 @@ export interface RenderContext {
     l1Sums?: Record<string, number>;
     /** Decoded length per sample hash (see `buildSampleMeta`). */
     decodedSizes?: Record<string, DecodedSize>;
+    /** Band-limited wave tables in the VFS (see `engine/wavetableMips`). */
+    wavetableMips?: ReadonlySet<string>;
     midiCcValues?: Record<number, number>;
     paramRefs?: import('../audio/paramRefs').ParamRefRegistry;
     ccBindings?: import('../audio/ccBindings').CcBindings;

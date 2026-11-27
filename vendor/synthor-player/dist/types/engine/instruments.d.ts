@@ -19,6 +19,9 @@ export interface SampleMeta {
     cycleLength?: number;
     /** Sum of |channel 0| — used to L1-normalize conv IRs (see mixer.ts). */
     l1?: number;
+    /** VFS keys of the band-limited wave tables uploaded so far (`wavetableMipKey`),
+     *  shared by every sample; the wave module plays raw cycles without them. */
+    mipKeys?: ReadonlySet<string>;
 }
 export declare function renderInstrument(inst: Instrument, freq: NodeRepr_t | number, gate: NodeRepr_t | number, voiceKey: string, 
 /** Sample metadata by sample id. */
